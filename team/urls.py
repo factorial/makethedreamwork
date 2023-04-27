@@ -4,5 +4,5 @@ from .views import index
 
 urlpatterns = [
     path("", TemplateView.as_view(template_name="home.html")),
-    path("api/prompt", index),
+    path("team", index),
 ]
