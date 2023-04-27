@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Make the Dream Work - build your team.</title>
+    <link rel="stylesheet" href="/static/style.css">
+<style>
+</style>
+  </head>
+  <body>
+	  <h1>Make the Dream Work</h1>
+	  <h2>Accomplish your goal by forming a team.</h2>
+	  <form action='/api/prompt' method='post'>
+		  {% csrf_token %}
+		  <input type='text' name='objective' placeholder='Run for office'>
+		  <input type='submit' value='Make a team'>
+	  </form>
+	  <p>Teamwork makes the dream work. Use this tool to kickstart forming a team of human or AI agents
+	  filling clearly defined collaborative roles. Let's do this.</p>
+
+  </body>
+</html>

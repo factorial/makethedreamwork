@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>{{ team.objective|default_if_none "Denied" }} Team</title>
+    <link rel="stylesheet" href="/static/style.css">
+<script type="module" src="https://md-block.verou.me/md-block.js"></script>
+
+<style>
+</style>
+  </head>
+  <body>
+	  <main id='main'>
+	  {% if not team %}
+	  <h1>Sorry, I can't help you make a team to do that. Try a different objective.</h1>
+	  {% else %}
+	  <h1>Your '{{ team.objective }}' Team</h1>
+	  <p>A possible version of it, anyway. You can use the handbooks provided to kickstart discussion
+	  among human team members or seed AI agents with context. 
+	  You may need to combine roles, or duplicate them, or add more that we didn't think of. 
+	  This is only the beginning, and the dynamic real world is going to challenge you in ways
+	  no one can predict, but together there's nothing we can't do. Good luck!
+	  </p>
+
+	  <ul class='team'>
+		  {% for role_name, role_dict in team.roles.items %}
+		  <li>
+			  <img src='{{ role_dict.image_url }}'>
+			  <h2>{{ role_name }}</h2>
+			  
+			  <p class='tasks'>{{ role_dict.tasks_string }}</p>
+			  <ul class='tasks'>
+				  {% for task in role_dict.tasks %}
+				  <li>
+					  {{ task }}
+				  </li>
+				  {% endfor %}
+			  </ul>
+			  <button onclick='showHandbook(this);'><span>Show Handbook</span></button>
+			  <section class='handbook'><textarea>{{ role_dict.guide }}</textarea></section>
+		  </li>
+		  {% endfor %}
+	  </ul>
+	  {% endif %}
+	  </main>
+  </body>
+  <script>
+	  function hideHandbook() {
+			    for (item of document.getElementsByClassName('handbook')) { item.style.display = 'none'; };
+		    }
+	  function showHandbook(buttonCaller) {
+			    // get caller
+			    // show section nearest modally or whatever
+			    buttonCaller.nextElementSibling.style.display = "block";
+
+			    //document.getElementById('main').addEventListener("click", hideHandbook, { once: true });
+			    event.stopPropagation()
+		    }
+
+  </script>
+</html>
