@@ -9,15 +9,56 @@
 </style>
   </head>
   <body>
-	  <h1>Make the Dream Work</h1>
+	  <h1>Teamwork Makes the Dream Work</h1>
 	  <h2>Accomplish your goal by forming a team.</h2>
 	  <form action='/team' method='post'>
 		  {% csrf_token %}
-		  <input type='text' name='objective' placeholder='What is your objective?'>
+		  <input type='text' name='objective' placeholder='Run for office' required id='objective'>
 		  <input type='submit' value='Make a team'>
 	  </form>
-	  <p>Teamwork makes the dream work. Use this tool to kickstart forming a team of human or AI agents
-	  filling clearly defined collaborative roles. Let's do this.</p>
+	  <p>Use AI to give you the first step toward doing something bigger than yourself.</p>
+	  <p>
+	  (This site does a lot of thinking. Please be patient.)
+	  </p>
 
   </body>
+  <script>
+	  const placeholders = [
+    "Create interactive art installation",
+    "Develop gamified educational platform",
+    "Produce documentary film",
+    "Design sustainable fashion line",
+    "Connect volunteers with non-profits",
+    "Launch augmented reality game",
+    "Teach creative skills to underserved",
+    "Design eco-friendly home products",
+    "Recycle and repurpose plastic waste",
+    "Launch innovative podcast series",
+    "Produce immersive theatrical experience",
+    "Connect people with shared values",
+    "Design eco-friendly toys and games",
+    "Offer online mentoring and coaching",
+    "Invent a new genre of music",
+    "Connect artists with buyers",
+    "Run for office in my county",
+    "Get better at math",
+    "Find the love of my life",
+    "Get back to learning",
+    "Discover the wonder of the cosmos",
+    "Go to the moon"
+
+];
+	  var remainingPlaceholders = placeholders.slice();
+
+	  window.setInterval(function() {
+			    var next = remainingPlaceholders.pop();
+			    if (!next) {
+					      remainingPlaceholders = placeholders.slice();
+					      next = remainingPlaceholders.pop();
+			      }
+			    document.getElementById('objective').placeholder = next;
+
+		    }, 4000);
+	  //window.document.getElementById('objective').focus();
+  </script>
 </html>
