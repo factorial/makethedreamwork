@@ -194,9 +194,12 @@ def generate_team(OBJECTIVE, guid):
             if isinstance(role_tasks[role], list):
                 print("saving tasks a list")
                 new_role.tasks_list_js_array=json.dumps(role_tasks[role])
+            elif isinstance(role_tasks[role], dict):
+                print("saving tasks as a different list")
+                new_role.tasks_list_string=json.dumps([role_tasks[role][key] for key in role_tasks[role]])
             else:
                 print("saving tasks a string")
-                new_role.tasks_list_string=role_tasks[role]
+                new_role.tasks_list_string=json.dumps(role_tasks[role])
         else:
             print(f"no, {role} not in {role_tasks}")
 
@@ -209,20 +212,58 @@ def generate_team(OBJECTIVE, guid):
         if render_images:
             prompt = f"3D rendered cartoon avatar of {role} from New York City, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
 
-            while True:
+            max_retries = 5
+            for retries in range(0, max_retries):
                 try:
                     response = openai.Image.create(
                         prompt=prompt,
                         n=1,
                         size="512x512"
                     )
+                    image_url = response['data'][0]['url']
+                    print(image_url)
+                    new_role.image_url=image_url
+                    new_role.save()
                     break
-                except:
-                    print(f"***Error generating image for {role}, trying again.")
-            image_url = response['data'][0]['url']
-            print(image_url)
-            new_role.image_url=image_url
-            new_role.save()
+                except openai.error.RateLimitError:
+                    print(f"***Error generating image for {role}.")
+                    print(
+                        "   *** The OpenAI API rate limit has been exceeded. Waiting 10 seconds and trying again. ***"
+                    )
+                    time.sleep(10)  # Wait 10 seconds and try again
+                except openai.error.Timeout:
+                    print(f"***Error generating image for {role}.")
+                    print(
+                        "   *** OpenAI API timeout occured. Waiting 10 seconds and trying again. ***"
+                    )
+                    time.sleep(10)  # Wait 10 seconds and try again
+                except openai.error.APIError:
+                    print(f"***Error generating image for {role}.")
+                    print(
+                        "   *** OpenAI API error occured. Waiting 10 seconds and trying again. ***"
+                    )
+                    time.sleep(10)  # Wait 10 seconds and try again
+                except openai.error.APIConnectionError:
+                    print(f"***Error generating image for {role}.")
+                    print(
+                        "   *** OpenAI API connection error occured. Check your network settings, proxy configuration, SSL certificates, or firewall rules. Waiting 10 seconds and trying again. ***"
+                    )
+                    time.sleep(10)  # Wait 10 seconds and try again
+                except openai.error.InvalidRequestError:
+                    print(f"***Error generating image for {role}.")
+                    print(
+                        "   *** OpenAI API invalid request. Check the documentation for the specific API method you are calling and make sure you are sending valid and complete parameters. Waiting 10 seconds and trying again. ***"
+                    )
+                    time.sleep(10)  # Wait 10 seconds and try again
+                except openai.error.ServiceUnavailableError:
+                    print(f"***Error generating image for {role}.")
+                    print(
+                        "   *** OpenAI API service unavailable. Waiting 10 seconds and trying again. ***"
+                    )
+                    time.sleep(10)  # Wait 10 seconds and try again
+                else:
+                    print(f"***Error generating image for {role}.")
+                    break
             progress_points = progress_points + 1
             team.generation_progress_percent = round(base_progress_percent + ((100-base_progress_percent)*(progress_points/total_progress_points)))
             team.save()
@@ -308,4 +349,17 @@ def team_by_guid(request, guid=None, format=None):
     return TemplateResponse(request, "team.html", template_context)
 
 
+def test_generate_profile_image(request):
+    role = request.GET["role"]
+    add = request.GET.get('add','')
+    prompt = f"3D rendered cartoon avatar of {add} {role} from New York City, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
 
+    print(f"trying {prompt}")
+    response = openai.Image.create(
+        prompt=prompt,
+        n=1,
+        size="512x512"
+    )
+    image_url = response['data'][0]['url']
+    print(image_url)
+    return HttpResponse(f'<img src="{image_url}">')
