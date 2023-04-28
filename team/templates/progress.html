@@ -13,8 +13,7 @@
   <body>
 	  <main id='main'>
 		  <h1>{{ progress_message }}</h1>
-		  <h2>{{ generation_progress_percent}}% complete</h2>
-		  {{team}}  
+		  <h2 class='progress bar' style="width:{{generation_progress_percent}}%">{{ generation_progress_percent}}%</h2>
 	  </main>
   </body>
   <script>
