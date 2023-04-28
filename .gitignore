@@ -1,6 +1,4 @@
 static/
-mysite/static/
-mysite/media/
 mysite/secrets.py
 db.sqlite3
 *.sw?
