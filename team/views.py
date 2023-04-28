@@ -167,7 +167,7 @@ def generate_team(OBJECTIVE):
                 responses["team"]["roles"][role]["tasks_string"] = role_tasks[role]
 
         if render_images:
-            prompt = f"3D rendered cartoon avatar of {role}, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT ugly, NOT bad"
+            prompt = f"3D rendered cartoon avatar of {role}, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
 
             while True:
                 try:
