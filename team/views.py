@@ -6,7 +6,9 @@ from django.conf import settings
 from django.urls import reverse
 
 from team.models import Team
-
+import requests
+import uuid
+import random
 import os
 import time
 import openai
@@ -136,9 +138,9 @@ def generate_team(OBJECTIVE, guid):
     role_tasks = {}
     try:
         role_tasks = json.loads(f"{result}")
-        # used later
+        print(f"parsed {result} into json {role_tasks}")
     except:
-        print("Couldn't parse the team description this time.")
+        print("Couldn't parse {result}.")
 
     valid_json = False
     while not valid_json:
@@ -196,7 +198,7 @@ def generate_team(OBJECTIVE, guid):
                 new_role.tasks_list_js_array=json.dumps(role_tasks[role])
             elif isinstance(role_tasks[role], dict):
                 print("saving tasks as a different list")
-                new_role.tasks_list_string=json.dumps([role_tasks[role][key] for key in role_tasks[role]])
+                new_role.tasks_list_js_array=json.dumps([role_tasks[role][key] for key in role_tasks[role]])
             else:
                 print("saving tasks a string")
                 new_role.tasks_list_string=json.dumps(role_tasks[role])
@@ -210,11 +212,16 @@ def generate_team(OBJECTIVE, guid):
         team.save()
 
         if render_images:
-            prompt = f"3D rendered cartoon avatar of {role} from New York City, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
+            generate_stranger = False
+            mascfem = random.choice(["masculine ", "feminine ", ""])
+            prompt = f"3D rendered cartoon avatar of {mascfem}{role} from New York City, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
 
             max_retries = 5
+
             for retries in range(0, max_retries):
                 try:
+                    if generate_stranger:
+                        prompt = f"3D rendered cartoon avatar of {mascfem}human from New York City, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
                     response = openai.Image.create(
                         prompt=prompt,
                         n=1,
@@ -252,9 +259,9 @@ def generate_team(OBJECTIVE, guid):
                 except openai.error.InvalidRequestError:
                     print(f"***Error generating image for {role}.")
                     print(
-                        "   *** OpenAI API invalid request. Check the documentation for the specific API method you are calling and make sure you are sending valid and complete parameters. Waiting 10 seconds and trying again. ***"
+                        "   *** OpenAI API invalid request. Check the documentation for the specific API method you are calling and make sure you are sending valid and complete parameters. Generating stranger image instead. ***"
                     )
-                    time.sleep(10)  # Wait 10 seconds and try again
+                    generate_stranger = True
                 except openai.error.ServiceUnavailableError:
                     print(f"***Error generating image for {role}.")
                     print(
@@ -264,17 +271,32 @@ def generate_team(OBJECTIVE, guid):
                 else:
                     print(f"***Error generating image for {role}.")
                     break
+            print("done with image")
             progress_points = progress_points + 1
             team.generation_progress_percent = round(base_progress_percent + ((100-base_progress_percent)*(progress_points/total_progress_points)))
             team.save()
 
-        
-
     end_time = time.time()
     print(end_time)
     total_time_mins = (end_time - start_time)/60
-    print(f"That took {total_time_mins} minutes.")
-    return
+    print(f"That took {total_time_mins} minutes. Serving page, then saving images.")
+
+    #return
+
+
+    for idx, role in enumerate(team.role_set.all()):
+        file_name = str(uuid.uuid4()) + ".png"
+        file_path = os.path.join(settings.DOWNLOAD_IMAGES_ROOT, file_name)
+        img_data = requests.get(role.image_url).content
+        with open(file_path, 'wb') as handler:
+            handler.write(img_data)
+            print(f"Downloaded and wrote to {file_path}")
+            role.image_url = f'{settings.DOWNLOAD_IMAGES_URL}/{file_name}'
+            role.save()
+            print(f"Saved image url to our image. {role.image_url} now")
+    
+    total_time_mins = (end_time - start_time)/60
+    print(f"After downloading images, that took {total_time_mins} minutes.")
 
 
 
@@ -352,7 +374,8 @@ def team_by_guid(request, guid=None, format=None):
 def test_generate_profile_image(request):
     role = request.GET["role"]
     add = request.GET.get('add','')
-    prompt = f"3D rendered cartoon avatar of {add} {role} from New York City, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
+    mascfem = random.choice(["masculine", "feminine"])
+    prompt = f"3D rendered cartoon avatar of {mascfem} {add} {role} from New York City, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
 
     print(f"trying {prompt}")
     response = openai.Image.create(

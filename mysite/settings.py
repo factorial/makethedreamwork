@@ -16,7 +16,7 @@ from . import secrets
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+print(BASE_DIR)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
@@ -26,11 +26,12 @@ SECRET_KEY = secrets.SECRET_KEY
 OPENAI_API_KEY=secrets.OPENAI_API_KEY
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+#DEBUG = True
 
 ALLOWED_HOSTS = [
     'ec2-3-95-169-75.compute-1.amazonaws.com',    
     'makethedreamwork.com',
+    'www.makethedreamwork.com',
 ]
 
 
@@ -124,7 +125,8 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, "static/")
-
+DOWNLOAD_IMAGES_ROOT = os.path.join(BASE_DIR, "mysite/static/i")
+DOWNLOAD_IMAGES_URL = "/static/i"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field

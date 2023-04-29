@@ -30,7 +30,8 @@ class Team(models.Model):
             try:
                 retval["team"]["roles"][role.name]["tasks"] = json.loads(role.tasks_list_js_array)
             except:
-                print(f"Couldn't parse {role.tasks_list_js_array} on {role.guid}")
+                if role.tasks_list_js_array:
+                    print(f"Couldn't parse {role.tasks_list_js_array} on {role.guid} which is a {role.name}")
 
 
         return retval
