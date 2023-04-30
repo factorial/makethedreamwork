@@ -205,7 +205,7 @@ def generate_team(OBJECTIVE, guid):
 
         prompt = f"""{loop_context}
                 You are an expert in the role of {role} on this team. Generate a handbook for the new member in this
-                role which answers the new member's specific questions in depth. Use Markdown format. 
+                role which answers the new member's specific questions in depth. Use Markdown format.
                 Also include in the handbook a guide which describes step-by-step a typical day in the life of a person in this role
                 on this team."""
         result, tokens_used = openai_call(prompt, max_tokens=3000)
@@ -240,7 +240,9 @@ def generate_team(OBJECTIVE, guid):
         if render_images:
             generate_stranger = False
             mascfem = random.choice(["masculine ", "feminine ", ""])
-            prompt = f"3D rendered cartoon avatar of {mascfem}{role} from New York City, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, NOT ugly, NOT disfigured, NOT bad"
+            city = "New York City"
+            #city = "Atlanta"
+            prompt = f"3D rendered cartoon avatar of {mascfem}{role} from {city}, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, NOT ugly, NOT disfigured, NOT bad"
 
             max_retries = 5
 
@@ -381,21 +383,21 @@ def team_by_guid(request, guid=None, format=None):
         print(f"generation progress is {team.generation_progress_percent}")
 
         if team.generation_progress_percent == 0:
-            template_context["progress_message"] = "Queued."
+            template_context["progress_message"] = f"{team.objective} team is in the queue."
         elif team.generation_progress_percent == 10:
-            template_context["progress_message"] = "Now generating your team."
+            template_context["progress_message"] = f"Team {team.objective} is generating..."
         elif team.generation_progress_percent == 20:
-            template_context["progress_message"] = "Got your team defined. Working on specifics."
+            template_context["progress_message"] = f"{team.objective} team defined. Working on specifics."
         else:
             number_roles_created = len(team.role_set.all())
             number_roles_with_guide = len(team.role_set.filter(guide_text__isnull=False))
             number_roles_completed = len(team.role_set.filter(image_url__isnull=False))
             if number_roles_completed == number_roles_created:
-                template_context["progress_message"] = f"Generating role #{number_roles_created+1} for your team."
+                template_context["progress_message"] = f"Generating role #{number_roles_created+1} for {team.objective} team."
             elif number_roles_with_guide == number_roles_created:
-                template_context["progress_message"] = f"Generating image for role #{number_roles_created}."
+                template_context["progress_message"] = f"Generating image for role #{number_roles_created} on team {team.objective}."
             else:
-                template_context["progress_message"] = f"Generating handbook for role #{number_roles_created}."
+                template_context["progress_message"] = f"Generating handbook for role #{number_roles_created} on the {team.objective} team."
 
         return TemplateResponse(request, "progress.html", template_context)
 
@@ -404,9 +406,10 @@ def team_by_guid(request, guid=None, format=None):
 
 def test_generate_profile_image(request):
     role = request.GET["role"]
+    mascfem = request.GET.get('mascfem', random.choice(["masculine", "feminine"]))
     add = request.GET.get('add','')
-    mascfem = random.choice(["masculine", "feminine"])
-    prompt = f"3D rendered cartoon avatar of {mascfem} {add} {role} from New York City, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
+    city = request.GET.get('city', 'New York City')
+    prompt = f"3D rendered cartoon avatar of {mascfem} {add} {role} from {city}, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
 
     print(f"trying {prompt}")
     response = openai.Image.create(
@@ -421,10 +424,14 @@ def test_generate_profile_image(request):
 @require_GET
 def home(request):
     template_context = {}
-    sample_size = 10
+    sample_size = 100
 
     template_context["recent"] = Team.objects.filter(private=False).order_by('-created')[:sample_size]
-    pks = random.sample([val for val in Team.objects.filter(private=False).values_list('pk', flat=True)], sample_size)
+    try:
+        pks = random.sample([val for val in Team.objects.filter(private=False).values_list('pk', flat=True)], sample_size)
+    except ValueError:
+        pks = [val for val in Team.objects.filter(private=False).values_list('pk', flat=True)]
+
     template_context["random"] = Team.objects.filter(pk__in=pks)
     return TemplateResponse(request, "home.html", template_context)
 
