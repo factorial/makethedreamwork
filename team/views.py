@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
 from django.http import HttpResponse, HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.conf import settings
@@ -30,66 +30,71 @@ OPENAI_TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", 0.5))
 openai.api_key = OPENAI_API_KEY
 render_images = True
 
-
 def openai_call(
       prompt: str,
       model: str = LLM_MODEL,
       temperature: float = OPENAI_TEMPERATURE,
       max_tokens: int = 100,
 ):
-    while True:
-        try:
-            # Use chat completion API
-            messages = [{"role": "system", "content": prompt}]
-            response = openai.ChatCompletion.create(
-                model=model,
-                messages=messages,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                n=1,
-                stop=None,
-            )
-            return response.choices[0].message.content.strip()
-        except openai.error.RateLimitError:
+        max_retries = 5
+        for retries in range(0, max_retries):
+            try:
+                # Use chat completion API
+                messages = [{"role": "system", "content": prompt}]
+                response = openai.ChatCompletion.create(
+                    model=model,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    n=1,
+                    stop=None,
+                )
+                return (response.choices[0].message.content.strip(), response.usage.total_tokens)
+            except openai.error.RateLimitError:
+                print(
+                    "   *** The OpenAI API rate limit has been exceeded. Waiting 10 seconds and trying again. ***"
+                )
+                time.sleep(10)  # Wait 10 seconds and try again
+            except openai.error.Timeout:
+                print(
+                    "   *** OpenAI API timeout occured. Waiting 10 seconds and trying again. ***"
+                )
+                time.sleep(10)  # Wait 10 seconds and try again
+            except openai.error.APIError:
+                print(
+                    "   *** OpenAI API error occured. Waiting 10 seconds and trying again. ***"
+                )
+                time.sleep(10)  # Wait 10 seconds and try again
+            except openai.error.APIConnectionError:
+                print(
+                    "   *** OpenAI API connection error occured. Check your network settings, proxy configuration, SSL certificates, or firewall rules. Waiting 10 seconds and trying again. ***"
+                )
+                time.sleep(10)  # Wait 10 seconds and try again
+            except openai.error.InvalidRequestError:
+                print(
+                    f"   *** OpenAI API invalid request. Check the documentation for the specific API method you are calling and make sure you are sending valid and complete parameters. Waiting 10 seconds and trying again. Prompt is {prompt} ***"
+                )
+                time.sleep(10)  # Wait 10 seconds and try again
+            except openai.error.ServiceUnavailableError:
+                print(
+                    "   *** OpenAI API service unavailable. Waiting 10 seconds and trying again. ***"
+                )
+                time.sleep(10)  # Wait 10 seconds and try again
+            else:
+                break
+            
             print(
-                "   *** The OpenAI API rate limit has been exceeded. Waiting 10 seconds and trying again. ***"
+                "   *** OpenAI API max retries hit, so bailing on request & returning false."
             )
-            time.sleep(10)  # Wait 10 seconds and try again
-        except openai.error.Timeout:
-            print(
-                "   *** OpenAI API timeout occured. Waiting 10 seconds and trying again. ***"
-            )
-            time.sleep(10)  # Wait 10 seconds and try again
-        except openai.error.APIError:
-            print(
-                "   *** OpenAI API error occured. Waiting 10 seconds and trying again. ***"
-            )
-            time.sleep(10)  # Wait 10 seconds and try again
-        except openai.error.APIConnectionError:
-            print(
-                "   *** OpenAI API connection error occured. Check your network settings, proxy configuration, SSL certificates, or firewall rules. Waiting 10 seconds and trying again. ***"
-            )
-            time.sleep(10)  # Wait 10 seconds and try again
-        except openai.error.InvalidRequestError:
-            print(
-                "   *** OpenAI API invalid request. Check the documentation for the specific API method you are calling and make sure you are sending valid and complete parameters. Waiting 10 seconds and trying again. ***"
-            )
-            time.sleep(10)  # Wait 10 seconds and try again
-        except openai.error.ServiceUnavailableError:
-            print(
-                "   *** OpenAI API service unavailable. Waiting 10 seconds and trying again. ***"
-            )
-            time.sleep(10)  # Wait 10 seconds and try again
-        else:
-            break
+            return False
 
 def create_and_generate_team(OBJECTIVE):
     print(f'shall I reject {OBJECTIVE} team?')
 
     prompt = f'Yes or no: is the following objective offensive or inappropriate: "{OBJECTIVE}"? Answer with only yes or no.'
-    result = openai_call(prompt, max_tokens=100)
+    result, tokens_used = openai_call(prompt, max_tokens=100)
     print("Offensive? "+ result)
-    if 'yes' in result.lower():
+    if not result or 'yes' in result.lower():
         return None
 
     # make new team, get guid
@@ -126,10 +131,16 @@ def generate_team(OBJECTIVE, guid):
         unique role names on the team and each key contains a task list for that unique role.
         RESPONSE (JSON format only):"""
     print(f"calling openai for team for {OBJECTIVE} guid {guid}")
-    result = openai_call(prompt, max_tokens=3000)
+    result, tokens_used = openai_call(prompt, max_tokens=3000)
     print(result)
+    print(f"TOKENS USED: {tokens_used}")
+    if not result:
+        print("something went wrong 2.")
+        return
+
 
     team.description=result
+    team.tokens_used += tokens_used
     team.generation_progress_percent = 10
     team.save()
 
@@ -145,8 +156,13 @@ def generate_team(OBJECTIVE, guid):
     valid_json = False
     while not valid_json:
         prompt = f"{context} List the roles on this team as a JavaScript array of strings. RESULT:["
-        result = openai_call(prompt)
+        result, tokens_used = openai_call(prompt)
         print("["+ result)
+        print(f"TOKENS USED: {tokens_used}")
+        if not result:
+            print("something went wrong 3.")
+            return
+        team.tokens_used += tokens_used
         team.generation_progress_percent = 20 
         team.save()
 
@@ -168,10 +184,15 @@ def generate_team(OBJECTIVE, guid):
         prompt = f"""{loop_context}
         You are a new member on this team, assuming the role of {role}. List the questions you want to ask an
         expert in this role so they can give you the answers that will make you successful at your tasks and able to
-        effectively collaborate toward the objective: {OBJECTIVE}."""
-        result = openai_call(prompt, max_tokens=3000)
+        effectively collaborate toward the real-world objective: {OBJECTIVE}."""
+        result, tokens_used = openai_call(prompt, max_tokens=3000)
         print(result)
+        print(f"TOKENS USED: {tokens_used}")
+        if not result:
+            print("something went wrong 4.")
+            return
         progress_points = progress_points + 1
+        team.tokens_used += tokens_used
         team.generation_progress_percent = round(base_progress_percent + ((100-base_progress_percent)*(progress_points/total_progress_points)))
         team.save()
 
@@ -184,11 +205,15 @@ def generate_team(OBJECTIVE, guid):
 
         prompt = f"""{loop_context}
                 You are an expert in the role of {role} on this team. Generate a handbook for the new member in this
-                role using Markdown format. In it, answer each of the new member's specific questions.
-                Also include a guide which describes step-by-step a typical workday that the person in this role
-                should expect to do."""
-        result = openai_call(prompt, max_tokens=3000)
+                role which answers the new member's specific questions in depth. Use Markdown format. 
+                Also include in the handbook a guide which describes step-by-step a typical day in the life of a person in this role
+                on this team."""
+        result, tokens_used = openai_call(prompt, max_tokens=3000)
         print(result)
+        print(f"TOKENS USED: {tokens_used}")
+        if not result:
+            print("something went wrong 5.")
+            return
 
 
         new_role.guide_text =result
@@ -201,20 +226,21 @@ def generate_team(OBJECTIVE, guid):
                 new_role.tasks_list_js_array=json.dumps([role_tasks[role][key] for key in role_tasks[role]])
             else:
                 print("saving tasks a string")
-                new_role.tasks_list_string=json.dumps(role_tasks[role])
+                new_role.tasks_list_text=json.dumps(role_tasks[role])
         else:
             print(f"no, {role} not in {role_tasks}")
 
         new_role.save()
 
         progress_points = progress_points + 1
+        team.tokens_used += tokens_used
         team.generation_progress_percent = round(base_progress_percent + ((100-base_progress_percent)*(progress_points/total_progress_points)))
         team.save()
 
         if render_images:
             generate_stranger = False
             mascfem = random.choice(["masculine ", "feminine ", ""])
-            prompt = f"3D rendered cartoon avatar of {mascfem}{role} from New York City, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
+            prompt = f"3D rendered cartoon avatar of {mascfem}{role} from New York City, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, NOT ugly, NOT disfigured, NOT bad"
 
             max_retries = 5
 
@@ -281,9 +307,6 @@ def generate_team(OBJECTIVE, guid):
     total_time_mins = (end_time - start_time)/60
     print(f"That took {total_time_mins} minutes. Serving page, then saving images.")
 
-    #return
-
-
     for idx, role in enumerate(team.role_set.all()):
         file_name = str(uuid.uuid4()) + ".png"
         file_path = os.path.join(settings.DOWNLOAD_IMAGES_ROOT, file_name)
@@ -295,8 +318,13 @@ def generate_team(OBJECTIVE, guid):
             role.save()
             print(f"Saved image url to our image. {role.image_url} now")
     
+    end_time = time.time()
     total_time_mins = (end_time - start_time)/60
-    print(f"After downloading images, that took {total_time_mins} minutes.")
+
+    cost_per_token = (0.002/1000)
+    cost_per_image = (0.018)
+    cost = (team.tokens_used * cost_per_token) + (cost_per_image * team.role_set.count())
+    print(f"After downloading {team.role_set.count()} images, that took {total_time_mins} minutes and {team.tokens_used} tokens (${cost}).")
 
 
 
@@ -311,6 +339,9 @@ def team(request):
     objective = request.POST.get('objective', "")
     context = {}
     guid = "no-objective"
+    if len(objective) > 511:
+        objective = None
+        guide = "denied"
     if objective:
         # if this fails, guid is None, team-by-guid's guid is None
         guid = create_and_generate_team(objective) or "denied"
@@ -386,3 +417,14 @@ def test_generate_profile_image(request):
     image_url = response['data'][0]['url']
     print(image_url)
     return HttpResponse(f'<img src="{image_url}">')
+
+@require_GET
+def home(request):
+    template_context = {}
+    sample_size = 10
+
+    template_context["recent"] = Team.objects.filter(private=False).order_by('-created')[:sample_size]
+    pks = random.sample([val for val in Team.objects.filter(private=False).values_list('pk', flat=True)], sample_size)
+    template_context["random"] = Team.objects.filter(pk__in=pks)
+    return TemplateResponse(request, "home.html", template_context)
+

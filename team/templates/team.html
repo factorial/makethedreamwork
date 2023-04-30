@@ -15,20 +15,18 @@
 	  {% if not team %}
 	  <h1>Sorry, I can't help you make a team to do that. Try a different objective.</h1>
 	  {% else %}
-	  <h1>Your '{{ team.objective }}' Team</h1>
+	  <h1>Your <em>{{ team.objective }}</em> Team</h1>
 	  <p>A possible version of it, anyway. You can use the handbooks provided to kickstart discussion
 	  among human team members or seed AI agents with context. 
 	  You may need to combine roles, or duplicate them, or add more that we didn't think of. 
-	  This is only the beginning, and the dynamic real world is going to challenge you in ways
-	  no one can predict, but together there's nothing we can't do. Good luck!
 	  </p>
 
 	  <ul class='team'>
 		  {% for role_name, role_dict in team.roles.items %}
 		  <li>
-			  <img src='{{ role_dict.image_url }}'>
+			  <img class='team role avatar' src='{{ role_dict.image_url }}'>
 			  <h2>{{ role_name }}</h2>
-			  <button onclick='showHandbook(this);'><span>Show Handbook</span></button>
+			  <button onclick='showHandbook(this);'><span>Role Handbook</span></button>
 			  <!-- this section must come directly after the button that shows it because my code is a joke-->
 			  <section class='handbook'>
 				  <h3>This is the handbook for your team's {{role_name}}, written in 
@@ -37,7 +35,7 @@
 					  want. Give this to your {{role_name}}(s).
 				  <button onclick='hideHandbook(this);'><span>Close</span></button>
 				  </h3>
-					  <textarea>{{ role_dict.guide }}</textarea>
+				  <textarea>{{ role_dict.guide }}</textarea>
 			  </section>
 			 
 			  <p class='tasks'>{{ role_dict.tasks_string }}</p>
@@ -61,7 +59,7 @@
 	  function showHandbook(buttonCaller) {
 			    // get caller
 			    // show section nearest modally or whatever
-			    buttonCaller.nextElementSibling.style.display = "block";
+			    buttonCaller.nextElementSibling.style.display = "grid";
 
 			    //document.getElementById('main').addEventListener("click", hideHandbook, { once: true });
 			    event.stopPropagation()

@@ -15,37 +15,53 @@
 		  {% csrf_token %}
 		  <input type='text' name='objective' placeholder='Run for office' required id='objective'>
 		  <input type='submit' value='Make a team'>
+		  <!--<label for='private'><span>Private</span> <input type='checkbox' name='private' checked value='private' id='private'></label>-->
 	  </form>
 	  <p>This site uses AI to put you on the <strong>first step toward doing something bigger than yourself</strong>.</p>
 	  <p>Enter an objective above. Think <strong>BIG</strong> (and please be patient, it's a multi-step process).</p>
 
+	  <section>
+	  <h2>What goals are other users forming teams for?</h2>
+	  <ol class='recent'>
+		  {% for team in random %}
+		  <li>
+			  <a href='/team/{{team.guid}}'>
+				  <button>
+					  <p>{{team.objective}}<p>
+					  {% if team.generation_progress_percent == 100 %}
+						  {% for role in team.role_set.all %}
+						  {# <img class='avatar' src='{{ role.image_url }}'> #}
+						  {% endfor %}
+					  {% endif %}
+				  </button>
+			  </a>
+		  </li>
+		  {% endfor %}
+	  </ol>
+	  </section>
   </body>
   <script>
 	  const placeholders = [
-    "Create interactive art installation",
-    "Develop gamified educational platform",
-    "Produce documentary film",
+    "Create an interactive art installation",
+    "Develop a gamified educational platform",
+    "Produce a documentary film",
     "Design sustainable fashion line",
-    "Connect volunteers with non-profits",
     "End slavery once and for all",
-    "Launch augmented reality game",
     "Design eco-friendly home products",
-    "Recycle and repurpose plastic waste",
-    "Launch innovative podcast series",
+    "Recycle and repurpose all plastic waste",
+    "Launch an innovative podcast series",
     "Reduce homelessness in America to near-zero",
-    "Produce immersive theatrical experience",
+    "Produce an immersive theatrical experience",
     "Connect people with shared values",
-    "Design eco-friendly toys and games",
-    "Offer online mentoring and coaching",
     "Invent a new genre of music",
     "Connect artists with buyers",
     "Teach creative skills to underserved",
     "Run for President of the USA",
-    "Get better at math",
-    "Find the love of my life",
-    "Get back to learning",
-    "Discover the wonder of the cosmos",
-    "Go to the moon"
+    "Unite humanity",
+    "End war forever by building the perfect defense",
+    "Spread the wonder of the cosmos",
+    "Go to the moon",
+    "Invent immortality"
 
 ];
 	  var remainingPlaceholders = placeholders.slice();

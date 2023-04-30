@@ -1,13 +1,21 @@
 from django.db import models
 import json
 import uuid
+from django.utils import timezone
+
 
 
 class Team(models.Model):
+    created = models.DateTimeField(default=timezone.now)
     guid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     objective = models.CharField(null=False, blank=False, max_length=511)
     description = models.TextField(null=True, blank=True)
     generation_progress_percent = models.PositiveSmallIntegerField(default=0)
+    private = models.BooleanField(default=False, null=False)
+    tokens_used = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.objective} ({self.guid}) private={self.private} tokens_used={self.tokens_used}"
 
     def get_template_context(self):
         retval = {
