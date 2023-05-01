@@ -35,12 +35,14 @@ def openai_call(
       model: str = LLM_MODEL,
       temperature: float = OPENAI_TEMPERATURE,
       max_tokens: int = 100,
+      role: str = "system",
+
 ):
         max_retries = 5
         for retries in range(0, max_retries):
             try:
                 # Use chat completion API
-                messages = [{"role": "system", "content": prompt}]
+                messages = [{"role": role, "content": prompt}]
                 response = openai.ChatCompletion.create(
                     model=model,
                     messages=messages,
@@ -205,7 +207,7 @@ def generate_team(OBJECTIVE, guid):
 
         prompt = f"""{loop_context}
                 You are an expert in the role of {role} on this team. Generate a handbook for the new member in this
-                role which answers the new member's specific questions in depth. Use Markdown format.
+                role using Markdown format. In it, answer the new member's specific questions in depth.
                 Also include in the handbook a guide which describes step-by-step a typical day in the life of a person in this role
                 on this team."""
         result, tokens_used = openai_call(prompt, max_tokens=3000)
@@ -240,8 +242,9 @@ def generate_team(OBJECTIVE, guid):
         if render_images:
             generate_stranger = False
             mascfem = random.choice(["masculine ", "feminine ", ""])
-            city = "New York City"
+            #city = "New York City"
             #city = "Atlanta"
+            city = random.choice(["New York City", "Atlanta"])
             prompt = f"3D rendered cartoon avatar of {mascfem}{role} from {city}, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, NOT ugly, NOT disfigured, NOT bad"
 
             max_retries = 5
@@ -434,4 +437,9 @@ def home(request):
 
     template_context["random"] = Team.objects.filter(pk__in=pks)
     return TemplateResponse(request, "home.html", template_context)
+
+@require_GET
+def chat_by_guid(request, guid=None):
+    template_context = {}
+    return TemplateResponse(request, "chat.html", template_context)
 
