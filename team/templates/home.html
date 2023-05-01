@@ -27,7 +27,7 @@
 		  <li>
 			  <a href='/team/{{team.guid}}'>
 				  <button>
-					  <p>{{team.objective}}<p>
+					  <p>{{team.objective}} {% if team.generation_progress_percent < 100 %}({{team.generation_progress_percent}}%){% endif %}<p>
 					  {% if team.generation_progress_percent == 100 %}
 						  {% for role in team.role_set.all %}
 						  {# <img class='avatar' src='{{ role.image_url }}'> #}
