@@ -1,1 +1,9 @@
 <pre style='white-space:break-spaces'>{{log }}</pre>
+<label class='human role name' for='human_input'><span>{{ human_role_name }}</span></label>
+	<form method='post'>
+		<input id='human_input' type='text' name='human_input'>
+		<input type='hidden' name='human_role_name' value='{{human_role_name}}'>
+		  {% csrf_token %}
+		<input type='submit'>
+	</form>
+

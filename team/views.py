@@ -20,8 +20,9 @@ import threading
 Concepts
 
 - "slow" ai
-- human teams with assistants
-
+- building human processes and finding places for ai to assist
+  = human teams, optional assistants
+- a curious team producing its own FAQ
 """
 
 OPENAI_API_KEY=settings.OPENAI_API_KEY
@@ -461,8 +462,14 @@ def create_team_chat_by_guid(request, team_guid):
     new_chat = Chat.objects.create(team_id=team_guid, log=initial_chat_log)
     new_chat.save()
     guid = new_chat.guid
+    human_role_names = request.GET.get('me', '').split(',')
 
     for role in new_chat.team.role_set.all():
+        if role.name in human_role_names:
+            print(f"Not summarizing for human role {role.name}")
+            new_chat.human_roles.add(role)
+            continue
+
         print(f"Summarizing handbook into a system prompt for role {role.name}")
         prompt = f'Summarize the following handbook into a directive to give to an AI agent assuming the role of {role.name}: {role.guide_text}'
         result, tokens_used = openai_call(prompt, max_tokens=3000)
@@ -474,8 +481,10 @@ def create_team_chat_by_guid(request, team_guid):
     print(f"Made AI agents for {new_chat.team}.")
     return HttpResponseRedirect(reverse('chat-by-guid', args=(guid,)))
 
-@require_GET
 def chat_by_guid(request, guid=None):
+    human_input = request.POST.get('human_input', None)
+    human_role_name = request.POST.get('human_role_name', None)
+
     template_context = {}
     try:
         chat = Chat.objects.get(guid=guid)
@@ -485,34 +494,49 @@ def chat_by_guid(request, guid=None):
     if not chat:
         return TemplateResponse(request, "chat.html", {})
 
+    summary_prompt = """You summarize a chat log into a brief project status recap. List the topics the team is working on with the important data points per topic."""
+
     # Describe how each role should interact in chat - say nothing unless the objective not complete and you have something to add
 
-    # while continuing
-        # per role that is not human:
-    for role in chat.team.role_set.all():
-        print(f"Chatting with role: {role}")
-
-        chat_instructions = f"""
-        Respond with a question, factual answer to a previous question, or command. Nothing more.
-        Respond with one sentence.
-        Begin responses with your role name.
-        Your role description:
-        {role.ai_prompt}
-        """
-        # Summarize chat so far.
-        prompt = f"""You are the {role.name} on this team. Our objective: {chat.team.objective}.
-        {chat_instructions}
-        {chat.log or ""}
-        """
-        result, tokens_used = openai_call(prompt, max_tokens=3000)
-        print(result)
-        print(f"TOKEN USED {tokens_used}")
-        chat.log += result + "\n\n"
+    if human_input and human_role_name:
+        chat.log += f"\n\n{human_role_name}: {human_input}\n\n"
         chat.save()
 
-            # Prompt: do you want to say anything?
-        # per role that is human:
-            # Prompt: do you want to say anything to the team or any specific @role
+    last_human_role_name = human_role_name
+    possible_human_role_names = [role.name for role in chat.human_roles.all()]
+    waiting_for_human_input = False
+    while not waiting_for_human_input:
+        # per role that is not human:
+        for role in chat.team.role_set.all():
+            # move through the order until passing the last speaking human
+            if last_human_role_name:
+                if role.name == last_human_role_name:
+                    last_human_role_name = None
+                continue
+            
+            print(f"Chatting with role: {role}")
+            if role.name in possible_human_role_names:
+                print(f"Found a human: {role}")
+                waiting_for_human_input=True
+                template_context["human_role_name"] = role.name
+                break
+
+            chat_instructions = f"""You are the {role.name} on this team. Our objective: {chat.team.objective}.
+            Respond with a question, answer to a previous question addressed to {role}, or command. Or be silent.
+            Respond with one sentence at most.
+            Begin responses with your role name.
+            When it is time for another person to respond, say "OVER" and stop responding.
+            {role.ai_prompt}
+            """
+            # Summarize chat so far.
+            prompt = f"""{chat_instructions}
+            {chat.log or ""}
+            """
+            result, tokens_used = openai_call(prompt, max_tokens=3000)
+            print(result)
+            print(f"TOKEN USED {tokens_used}")
+            chat.log += result + "\n\n"
+            chat.save()
 
     template_context["log"] = chat.log
     return TemplateResponse(request, "chat.html", template_context)
