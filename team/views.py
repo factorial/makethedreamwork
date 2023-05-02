@@ -43,13 +43,16 @@ def openai_call(
       temperature: float = OPENAI_TEMPERATURE,
       max_tokens: int = 100,
       role: str = "system",
-
+      previous_messages: list = None
 ):
         max_retries = 5
         for retries in range(0, max_retries):
             try:
                 # Use chat completion API
-                messages = [{"role": role, "content": prompt}]
+                if not previous_messages:
+                    messages = [{"role": role, "content": prompt}]
+                else:
+                    messages = previous_messages + [{"role": role, "content": prompt}]
                 response = openai.ChatCompletion.create(
                     model=model,
                     messages=messages,
@@ -79,7 +82,7 @@ def openai_call(
                     "   *** OpenAI API connection error occured. Check your network settings, proxy configuration, SSL certificates, or firewall rules. Waiting 10 seconds and trying again. ***"
                 )
                 time.sleep(10)  # Wait 10 seconds and try again
-            except openai.error.InvalidRequestError:
+            except openai.error.InvalidRequestError as e:
                 print(
                         f"   *** OpenAI API invalid request. {e} Check the documentation for the specific API method you are calling and make sure you are sending valid and complete parameters. Waiting 10 seconds and trying again. "
                 )
@@ -496,6 +499,7 @@ def chat_by_guid(request, guid=None):
     if not chat:
         return TemplateResponse(request, "chat.html", {})
 
+    # use this everytime the chat gets too long
     summary_prompt = """You summarize a chat log into a brief project status recap. List the topics the team is working on with the important data points per topic."""
 
     # Describe how each role should interact in chat - say nothing unless the objective not complete and you have something to add
@@ -523,19 +527,25 @@ def chat_by_guid(request, guid=None):
                 template_context["human_role_name"] = role.name
                 break
 
-            chat_instructions = f"""You are the {role.name} on this team. Our objective: {chat.team.objective}.
+            system_chat_instructions = f"""You are the {role.name} on this team. Our objective: {chat.team.objective}.
             Respond with a question, answer to a previous question addressed to {role.name}, or a command. Or be silent.
             Respond with one sentence at most.
             Begin responses with your role name.
-            Stop responding after you ask a question.
+            Stop responding after you ask a question or give a command.
             Whenever it is time for another person to respond stop responding and remain silent.
             {role.ai_prompt}
             """
             # Summarize chat so far.
-            prompt = f"""{chat_instructions}
-            {chat.log or ""}
-            """
-            result, tokens_used = openai_call(prompt, max_tokens=3000)
+            system_prompt = f"""{system_chat_instructions}"""
+            user_prompt = f"""{chat.log or ""}\n\n"""
+            previous_messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt }
+                    ]
+            role = "assistant"
+            prompt = ""
+
+            result, tokens_used = openai_call(prompt, max_tokens=3000, previous_messages=previous_messages)
             print(result)
             print(f"TOKEN USED {tokens_used}")
             if not result:
