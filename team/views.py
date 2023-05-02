@@ -81,7 +81,7 @@ def openai_call(
                 time.sleep(10)  # Wait 10 seconds and try again
             except openai.error.InvalidRequestError:
                 print(
-                    f"   *** OpenAI API invalid request. Check the documentation for the specific API method you are calling and make sure you are sending valid and complete parameters. Waiting 10 seconds and trying again. Prompt is {prompt} ***"
+                        f"   *** OpenAI API invalid request. {e} Check the documentation for the specific API method you are calling and make sure you are sending valid and complete parameters. Waiting 10 seconds and trying again. "
                 )
                 time.sleep(10)  # Wait 10 seconds and try again
             except openai.error.ServiceUnavailableError:
@@ -95,7 +95,7 @@ def openai_call(
             print(
                 "   *** OpenAI API max retries hit, so bailing on request & returning false."
             )
-            return False
+            return False, 0
 
 def create_and_generate_team(OBJECTIVE):
     print(f'shall I reject {OBJECTIVE} team?')
@@ -462,13 +462,15 @@ def create_team_chat_by_guid(request, team_guid):
     new_chat = Chat.objects.create(team_id=team_guid, log=initial_chat_log)
     new_chat.save()
     guid = new_chat.guid
-    human_role_names = request.GET.get('me', '').split(',')
+    human_role_guids = request.GET.get('me', '').split(' ')
 
     for role in new_chat.team.role_set.all():
-        if role.name in human_role_names:
+        if str(role.guid) in human_role_guids:
             print(f"Not summarizing for human role {role.name}")
             new_chat.human_roles.add(role)
             continue
+        else:
+            print(f"{role.guid} not in human guids {human_role_guids}")
 
         print(f"Summarizing handbook into a system prompt for role {role.name}")
         prompt = f'Summarize the following handbook into a directive to give to an AI agent assuming the role of {role.name}: {role.guide_text}'
@@ -508,8 +510,8 @@ def chat_by_guid(request, guid=None):
     while not waiting_for_human_input:
         # per role that is not human:
         for role in chat.team.role_set.all():
-            # move through the order until passing the last speaking human
-            if last_human_role_name:
+            # move through the order until passing the last speaking human, as long as that human was in the list
+            if last_human_role_name in possible_human_role_names:
                 if role.name == last_human_role_name:
                     last_human_role_name = None
                 continue
@@ -522,10 +524,11 @@ def chat_by_guid(request, guid=None):
                 break
 
             chat_instructions = f"""You are the {role.name} on this team. Our objective: {chat.team.objective}.
-            Respond with a question, answer to a previous question addressed to {role}, or command. Or be silent.
+            Respond with a question, answer to a previous question addressed to {role.name}, or a command. Or be silent.
             Respond with one sentence at most.
             Begin responses with your role name.
-            When it is time for another person to respond, say "OVER" and stop responding.
+            Stop responding after you ask a question.
+            Whenever it is time for another person to respond stop responding and remain silent.
             {role.ai_prompt}
             """
             # Summarize chat so far.
@@ -535,8 +538,18 @@ def chat_by_guid(request, guid=None):
             result, tokens_used = openai_call(prompt, max_tokens=3000)
             print(result)
             print(f"TOKEN USED {tokens_used}")
+            if not result:
+                chat.log += "THE END SORRY I COST MONEY"
+                waiting_for_human_input=True
+                template_context["human_role_name"] = "The end"
+                template_context["log"] = chat.log
+                return TemplateResponse(request, "chat.html", template_context)
+
             chat.log += result + "\n\n"
             chat.save()
+        if len(possible_human_role_names) == 0:
+            waiting_for_human_input=True
+            template_context["human_role_name"] = "Moderator"
 
     template_context["log"] = chat.log
     return TemplateResponse(request, "chat.html", template_context)
