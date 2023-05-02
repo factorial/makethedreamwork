@@ -4,7 +4,6 @@ import uuid
 from django.utils import timezone
 
 
-
 class Team(models.Model):
     created = models.DateTimeField(default=timezone.now)
     guid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -52,9 +51,20 @@ class Role(models.Model):
     tasks_list_js_array = models.TextField(null=True, blank=True)
     tasks_list_text = models.TextField(null=True, blank=True)
     image_url = models.URLField(max_length=1023, null=True, blank=True)
+    ai_prompt = models.TextField(null=True, blank=True)
 
 
     team = models.ForeignKey(Team, on_delete=models.CASCADE)
 
+    def __str__(self):
+        return f"{self.name} ({self.guid}) on {self.team.objective} team"
+
+
+class Chat(models.Model):
+    guid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    log = models.TextField(null=True, blank=True)
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE)
+    human_roles =  models.ManyToManyField(Role)
 
 

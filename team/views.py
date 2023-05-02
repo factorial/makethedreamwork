@@ -5,7 +5,7 @@ from django.template.response import TemplateResponse
 from django.conf import settings
 from django.urls import reverse
 
-from team.models import Team
+from team.models import Team, Chat
 import requests
 import uuid
 import random
@@ -16,7 +16,13 @@ from dotenv import load_dotenv
 import json
 import threading
 
+"""
+Concepts
 
+- "slow" ai
+- human teams with assistants
+
+"""
 
 OPENAI_API_KEY=settings.OPENAI_API_KEY
 
@@ -243,8 +249,8 @@ def generate_team(OBJECTIVE, guid):
             generate_stranger = False
             mascfem = random.choice(["masculine ", "feminine ", ""])
             #city = "New York City"
-            #city = "Atlanta"
-            city = random.choice(["New York City", "Atlanta"])
+            city = "Atlanta"
+            #city = random.choice(["New York City", "Atlanta"])
             prompt = f"3D rendered cartoon avatar of {mascfem}{role} from {city}, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, NOT ugly, NOT disfigured, NOT bad"
 
             max_retries = 5
@@ -439,7 +445,75 @@ def home(request):
     return TemplateResponse(request, "home.html", template_context)
 
 @require_GET
+def create_team_chat_by_guid(request, team_guid):
+    """
+    create a new chat
+    return redirect to the new chat
+    """
+    team = Team.objects.get(guid=team_guid)
+
+    initial_chat_log = f"""
+    # CHAT LOG - TEAM OBJECTIVE = {team.objective}
+    
+    Moderator: Team, begin work on your objective. Good luck.
+
+    """
+    new_chat = Chat.objects.create(team_id=team_guid, log=initial_chat_log)
+    new_chat.save()
+    guid = new_chat.guid
+
+    for role in new_chat.team.role_set.all():
+        print(f"Summarizing handbook into a system prompt for role {role.name}")
+        prompt = f'Summarize the following handbook into a directive to give to an AI agent assuming the role of {role.name}: {role.guide_text}'
+        result, tokens_used = openai_call(prompt, max_tokens=3000)
+        print(result)
+        print(f"TOKEN USED {tokens_used}")
+        role.ai_prompt = result
+        role.save()
+
+    print(f"Made AI agents for {new_chat.team}.")
+    return HttpResponseRedirect(reverse('chat-by-guid', args=(guid,)))
+
+@require_GET
 def chat_by_guid(request, guid=None):
     template_context = {}
+    try:
+        chat = Chat.objects.get(guid=guid)
+    except:
+        chat = None
+
+    if not chat:
+        return TemplateResponse(request, "chat.html", {})
+
+    # Describe how each role should interact in chat - say nothing unless the objective not complete and you have something to add
+
+    # while continuing
+        # per role that is not human:
+    for role in chat.team.role_set.all():
+        print(f"Chatting with role: {role}")
+
+        chat_instructions = f"""
+        Respond with a question, factual answer to a previous question, or command. Nothing more.
+        Respond with one sentence.
+        Begin responses with your role name.
+        Your role description:
+        {role.ai_prompt}
+        """
+        # Summarize chat so far.
+        prompt = f"""You are the {role.name} on this team. Our objective: {chat.team.objective}.
+        {chat_instructions}
+        {chat.log or ""}
+        """
+        result, tokens_used = openai_call(prompt, max_tokens=3000)
+        print(result)
+        print(f"TOKEN USED {tokens_used}")
+        chat.log += result + "\n\n"
+        chat.save()
+
+            # Prompt: do you want to say anything?
+        # per role that is human:
+            # Prompt: do you want to say anything to the team or any specific @role
+
+    template_context["log"] = chat.log
     return TemplateResponse(request, "chat.html", template_context)
 
