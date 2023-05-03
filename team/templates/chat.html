@@ -31,8 +31,9 @@
 	  <h1>No such chat.</h1>
 	  {% else %}
 	  <h1><em>{{ chat.team.objective }}</em> Team Chat</h1>
+	  <h2>Bookmark this page. It's your own chat and without this URL you can't get back to it.</h2>
 	
-	  <div id="scroller" class='chat log'>{{chat.log_historical|default:""}}{{ chat.log }}
+	  <div id="scroller" class='chat log'>{{chat.log_historical|default:"" }}{{ chat.log|default:"" }}
 		  <div id="anchor"></div>
 	  </div>
 

@@ -69,4 +69,7 @@ class Chat(models.Model):
     team = models.ForeignKey(Team, on_delete=models.CASCADE)
     human_roles =  models.ManyToManyField(Role)
 
+    def __str__(self):
+        return f"Chat ({self.guid}) for {self.team.objective} team"
+
 

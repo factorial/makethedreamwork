@@ -94,21 +94,25 @@ def openai_call(
                     "   *** The OpenAI API rate limit has been exceeded. Waiting 10 seconds and trying again. ***"
                 )
                 time.sleep(10)  # Wait 10 seconds and try again
+                continue
             except openai.error.Timeout:
                 print(
                     "   *** OpenAI API timeout occured. Waiting 10 seconds and trying again. ***"
                 )
                 time.sleep(10)  # Wait 10 seconds and try again
+                continue
             except openai.error.APIError:
                 print(
                     "   *** OpenAI API error occured. Waiting 10 seconds and trying again. ***"
                 )
                 time.sleep(10)  # Wait 10 seconds and try again
+                continue
             except openai.error.APIConnectionError:
                 print(
                     "   *** OpenAI API connection error occured. Check your network settings, proxy configuration, SSL certificates, or firewall rules. Waiting 10 seconds and trying again. ***"
                 )
                 time.sleep(10)  # Wait 10 seconds and try again
+                continue
             except openai.error.InvalidRequestError as e:
                 print(
                         f"   *** OpenAI API invalid request. {e} Check the documentation for the specific API method you are calling and make sure you are sending valid and complete parameters. Waiting 10 seconds and bailing. "
@@ -120,11 +124,12 @@ def openai_call(
                     "   *** OpenAI API service unavailable. Waiting 10 seconds and trying again. ***"
                 )
                 time.sleep(10)  # Wait 10 seconds and try again
+                continue
             else:
                 break
             
             print(
-                "   *** OpenAI API max retries hit, so bailing on request & returning false."
+                "   *** OpenAI API max retries or weird error hit, so bailing on request & returning false."
             )
             return False, 0
 
@@ -307,36 +312,42 @@ def generate_team(OBJECTIVE, guid):
                         "   *** The OpenAI API rate limit has been exceeded. Waiting 10 seconds and trying again. ***"
                     )
                     time.sleep(10)  # Wait 10 seconds and try again
+                    continue
                 except openai.error.Timeout:
                     print(f"***Error generating image for {role}.")
                     print(
                         "   *** OpenAI API timeout occured. Waiting 10 seconds and trying again. ***"
                     )
                     time.sleep(10)  # Wait 10 seconds and try again
+                    continue
                 except openai.error.APIError:
                     print(f"***Error generating image for {role}.")
                     print(
                         "   *** OpenAI API error occured. Waiting 10 seconds and trying again. ***"
                     )
                     time.sleep(10)  # Wait 10 seconds and try again
+                    continue
                 except openai.error.APIConnectionError:
                     print(f"***Error generating image for {role}.")
                     print(
                         "   *** OpenAI API connection error occured. Check your network settings, proxy configuration, SSL certificates, or firewall rules. Waiting 10 seconds and trying again. ***"
                     )
                     time.sleep(10)  # Wait 10 seconds and try again
+                    continue
                 except openai.error.InvalidRequestError:
                     print(f"***Error generating image for {role}.")
                     print(
                         "   *** OpenAI API invalid request. Check the documentation for the specific API method you are calling and make sure you are sending valid and complete parameters. Generating stranger image instead. ***"
                     )
                     generate_stranger = True
+                    continue
                 except openai.error.ServiceUnavailableError:
                     print(f"***Error generating image for {role}.")
                     print(
                         "   *** OpenAI API service unavailable. Waiting 10 seconds and trying again. ***"
                     )
                     time.sleep(10)  # Wait 10 seconds and try again
+                    continue
                 else:
                     print(f"***Error generating image for {role}.")
                     break
@@ -483,14 +494,7 @@ def create_team_chat_by_guid(request, team_guid):
     return redirect to the new chat
     """
     team = Team.objects.get(guid=team_guid)
-
-    initial_chat_log = f"""
-    # CHAT LOG - TEAM OBJECTIVE = {team.objective}
-    
-    Moderator: Team, begin work on your objective. Good luck.
-
-    """
-    new_chat = Chat.objects.create(team_id=team_guid, log=initial_chat_log)
+    new_chat = Chat.objects.create(team_id=team_guid)
     new_chat.save()
     guid = new_chat.guid
     human_role_guids = request.GET.get('me', '').split(' ')
@@ -503,7 +507,7 @@ def create_team_chat_by_guid(request, team_guid):
         else:
             print(f"{role.guid} not in human guids {human_role_guids}")
 
-        print(f"Summarizing handbook into a system prompt for role {role.name}")
+        print(f"Making AI system prompt for role {role.name}")
         #prompt = f'Summarize the following handbook into a directive to give to an AI agent assuming the role of {role.name}: {role.guide_text}'
         #result, tokens_used = openai_call(prompt, max_tokens=3000)
         #print(f"TOKEN USED {tokens_used}")
@@ -515,12 +519,11 @@ def create_team_chat_by_guid(request, team_guid):
         role.save()
 
     print(f"Made AI agents for {new_chat.team}.")
-    return HttpResponseRedirect(reverse('chat-by-guid', args=(guid,))+"?proceed=1")
+    return HttpResponseRedirect(reverse('chat-by-guid', args=(guid,)))
 
 def chat_by_guid(request, guid=None):
     human_input = request.POST.get('human_input', None)
     human_role_name = request.POST.get('human_role_name', None)
-    proceed = request.GET.get('proceed', None)
     full_meeting = request.GET.get('full_meeting', None)
 
     template_context = {}
@@ -531,26 +534,42 @@ def chat_by_guid(request, guid=None):
 
     if not chat:
         return TemplateResponse(request, "chat.html", {})
-    
-    waiting_for_human_input = False
-    if human_input and human_role_name:
-        chat.log += f"\n\n{human_role_name}: {human_input}\n\n"
+
+    brand_new_chat=False
+    if not chat.log and not chat.log_historical:
+        initial_chat_log = f"""
+        # CHAT LOG - TEAM OBJECTIVE = {chat.team.objective}
+        
+        Moderator: Team, begin work on your objective. Good luck.
+
+        """
+        chat.log = initial_chat_log
         chat.save()
-    elif not proceed and human_input is None and human_role_name is None:
-        waiting_for_human_input = True
+        brand_new_chat=True
     
     last_human_role_name = human_role_name
     possible_human_role_names = [role.name for role in chat.human_roles.all()]
+    
+    waiting_for_human_input = False
+    if not full_meeting and not brand_new_chat and not last_human_role_name:
+        waiting_for_human_input = True
+        template_context["human_role_name"] = "Moderator"
+    if human_input and human_role_name:
+        chat.log += f"\n\n{human_role_name}: {human_input}\n\n"
+        chat.save()
+    
 
-   
+    summary = None
     restart_role_ring_now = False
+    print(f"{ waiting_for_human_input } - human turn?")
     while not waiting_for_human_input:
+        print(f"Rotating through all roles in team {chat.team}")
         for role in chat.team.role_set.all():
             if restart_role_ring_now:
                 # Things got summarized so we have to start the chat over.
                 restart_role_ring_now = False
                 break
-            
+        
             # move through the order until passing the last speaking human, as long as that human was in the list
             if last_human_role_name in possible_human_role_names:
                 if role.name == last_human_role_name:
@@ -590,8 +609,9 @@ def chat_by_guid(request, guid=None):
                 print(f"Summarizing Chat {chat.guid} so far")
                 #summary_system_prompt = """You summarize a chat log into a project status recap. The recap always lists the top 5 tasks the team is working on as a todo list with assignees and the most important data points per task."""
                 #summary_system_prompt = f"""You summarize a chat log into a brief project status recap. The recap includes two short sections: * Answers to the important questions so far * the top 5 currently incomplete tasks the team is working on as a todo list with assignees """
-                summary_system_prompt = """You summarize a meeting log into a list of precisely what actions each team member takebefore the next meeting and facts gathered so far."""
+                #summary_system_prompt = """You summarize a meeting log into a list of precisely what actions each team member will take before the next meeting and factoids discovered by the team."""
 
+                summary_system_prompt = """Produce a list of items stated as a fact."""
                 summary_messages = [{"role": "system", "content": summary_system_prompt }]
                 # summary must not fail. a token is about 3/4 of a word.
                 token_count = approximate_word_count(f"{summary_system_prompt}{chatlog}") * (4/3)
@@ -627,10 +647,14 @@ def chat_by_guid(request, guid=None):
        
         # Done with the role ring 
         if len(possible_human_role_names) == 0:
-            waiting_for_human_input=True
-            template_context["human_role_name"] = "Moderator"
+            print(f"no human role names possible")
+            if summary or not full_meeting:
+                waiting_for_human_input=True
+                print(f"waiting for human input")
+                template_context["human_role_name"] = "Moderator"
+            else:
+                print(f"Full meeting - Not waiting for human input after role ring for {chat.team}.")
 
     template_context["chat"] = chat
-    
     return TemplateResponse(request, "chat.html", template_context)
 
