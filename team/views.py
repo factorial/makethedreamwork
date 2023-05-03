@@ -38,6 +38,18 @@ Concepts
 - building human processes and finding places for ai to assist
   = human teams, optional assistants
 - a curious team producing its own FAQ
+- remember this team is locked in a box with only its knowledge.
+- AIs built to replicate patterns of human communication will necessarily
+  function best when they interact like a highly-functional human team:
+  keeping morale high, kind words, affirmation... seemingly unproductive
+  conversation among computers, but aligned with the human language
+  training data
+"""
+
+"""
+MAYBE TODO
+- Gather facts & tasks after every round of chat and present it to the user
+  as well as to each agent when prompting for that agent's response.
 """
 
 OPENAI_API_KEY=settings.OPENAI_API_KEY
@@ -509,6 +521,7 @@ def chat_by_guid(request, guid=None):
     human_input = request.POST.get('human_input', None)
     human_role_name = request.POST.get('human_role_name', None)
     proceed = request.GET.get('proceed', None)
+    full_meeting = request.GET.get('full_meeting', None)
 
     template_context = {}
     try:
