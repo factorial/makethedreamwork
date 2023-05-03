@@ -1,9 +1,54 @@
-<pre style='white-space:break-spaces'>{{log }}</pre>
-<label class='human role name' for='human_input'><span>{{ human_role_name }}</span></label>
-	<form method='post'>
-		<input id='human_input' type='text' name='human_input'>
-		<input type='hidden' name='human_role_name' value='{{human_role_name}}'>
-		  {% csrf_token %}
-		<input type='submit'>
-	</form>
+<!DOCTYPE html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>{{ chat.team.objective|default:"Not team" }} Chat</title>
+    <link rel="stylesheet" href="/static/style.css">
+<script type="module" src="https://md-block.verou.me/md-block.js"></script>
 
+<style>
+#scroller * {
+  overflow-anchor: none;
+}
+
+#anchor {
+  overflow-anchor: auto;
+  height: 1px;
+}
+
+#scroller {
+	white-space:break-spaces;
+	font-family:monospace;
+}
+
+
+</style>
+  </head>
+  <body>
+	  <main id='main'>
+	  {% if not chat %}
+	  <h1>No such chat.</h1>
+	  {% else %}
+	  <h1>Team <em>{{ chat.team.objective }}</em> Chat</h1>
+	
+	  <div id="scroller" class='chat log'>{{ chat.log }}
+		  <div id="anchor"></div>
+	  </div>
+
+	  <form method='post'>
+		  <label><span>{{human_role_name}}</span></label>
+		  <input id='human_input' type='text' name='human_input' placeholder='(You can stay silent.)'>
+		  <input type='hidden' name='human_role_name' value='{{human_role_name}}'>
+		  {% csrf_token %}
+		  <input type='submit'>
+	  </form>
+
+
+	  {% endif %}
+	  </main>
+  </body>
+  <script>
+	  window.scrollTo(0, document.body.scrollHeight);
+  </script>
+</html>

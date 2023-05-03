@@ -501,11 +501,12 @@ def create_team_chat_by_guid(request, team_guid):
         role.save()
 
     print(f"Made AI agents for {new_chat.team}.")
-    return HttpResponseRedirect(reverse('chat-by-guid', args=(guid,)))
+    return HttpResponseRedirect(reverse('chat-by-guid', args=(guid,))+"?proceed=1")
 
 def chat_by_guid(request, guid=None):
     human_input = request.POST.get('human_input', None)
     human_role_name = request.POST.get('human_role_name', None)
+    proceed = request.GET.get('proceed', None)
 
     template_context = {}
     try:
@@ -516,12 +517,15 @@ def chat_by_guid(request, guid=None):
     if not chat:
         return TemplateResponse(request, "chat.html", {})
     
+    waiting_for_human_input = False
     if human_input and human_role_name:
         chat.log += f"\n\n{human_role_name}: {human_input}\n\n"
         chat.save()
+    elif not proceed and human_input is None and human_role_name is None:
+        waiting_for_human_input = True
+    
     last_human_role_name = human_role_name
     possible_human_role_names = [role.name for role in chat.human_roles.all()]
-    waiting_for_human_input = False
 
    
     restart_role_ring_now = False
@@ -581,7 +585,7 @@ def chat_by_guid(request, guid=None):
                     substrlen = len(prompt)*scale_factor
                     chatlog = chatlog[-substrlen:]
 
-                result, tokens_used = openai_call(chatlog,role="user", max_tokens=1000, previous_messages=summary_messages)
+                result, tokens_used = openai_call(chatlog,role="user", max_tokens=500, previous_messages=summary_messages)
                 print(result)
                 print(f"TOKENS USED {tokens_used}")
                 # save the log so the chat can be rendered as old log + summary + current log
@@ -608,7 +612,7 @@ def chat_by_guid(request, guid=None):
             waiting_for_human_input=True
             template_context["human_role_name"] = "Moderator"
 
-    template_context["log"] = chat.log
+    template_context["chat"] = chat
     
     return TemplateResponse(request, "chat.html", template_context)
 
