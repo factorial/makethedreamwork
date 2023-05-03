@@ -99,9 +99,10 @@ def openai_call(
                 time.sleep(10)  # Wait 10 seconds and try again
             except openai.error.InvalidRequestError as e:
                 print(
-                        f"   *** OpenAI API invalid request. {e} Check the documentation for the specific API method you are calling and make sure you are sending valid and complete parameters. Waiting 10 seconds and trying again. "
+                        f"   *** OpenAI API invalid request. {e} Check the documentation for the specific API method you are calling and make sure you are sending valid and complete parameters. Waiting 10 seconds and bailing. "
                 )
                 time.sleep(10)  # Wait 10 seconds and try again
+                retries=max_retries
             except openai.error.ServiceUnavailableError:
                 print(
                     "   *** OpenAI API service unavailable. Waiting 10 seconds and trying again. ***"
@@ -495,8 +496,9 @@ def create_team_chat_by_guid(request, team_guid):
         #result, tokens_used = openai_call(prompt, max_tokens=3000)
         #print(f"TOKEN USED {tokens_used}")
         result = f"""You are an expert in the role of {role.name} on this team. Team objective: '{team.objective}'.
-                You read the latest chat messages and summary and respond with a question, a command, a factual
-                response to a question, or silence. You always begin responses with '{role.name}:'."""
+                You read the latest chat messages and summary and respond with a question, a task, a factual
+                response to a question, or silence. You always begin responses with '{role.name}:'.
+                Your responsibilities are:{role.tasks_list_js_array}{role.tasks_list_text}"""
         role.ai_prompt = result
         role.save()
 
@@ -573,31 +575,34 @@ def chat_by_guid(request, guid=None):
                 # summarize it.
                 chatlog = chat.log
                 print(f"Summarizing Chat {chat.guid} so far")
-                summary_system_prompt = """You summarize a chat log into a project status recap. The recap always lists the top 5 tasks the team is working on as a todo list with assignees and the most important data points per task."""
+                #summary_system_prompt = """You summarize a chat log into a project status recap. The recap always lists the top 5 tasks the team is working on as a todo list with assignees and the most important data points per task."""
+                #summary_system_prompt = f"""You summarize a chat log into a brief project status recap. The recap includes two short sections: * Answers to the important questions so far * the top 5 currently incomplete tasks the team is working on as a todo list with assignees """
+                summary_system_prompt = """You summarize a meeting log into a list of precisely what actions each team member takebefore the next meeting and facts gathered so far."""
+
                 summary_messages = [{"role": "system", "content": summary_system_prompt }]
                 # summary must not fail. a token is about 3/4 of a word.
-                token_count = approximate_word_count(f"{summary_system_prompt}{chatlog}") * (3/4)
-                max_token_count = 3000
-                max_word_count = int(max_token_count *4/3)
+                token_count = approximate_word_count(f"{summary_system_prompt}{chatlog}") * (4/3)
+                max_token_count = 1000
 
                 if token_count > max_token_count:
                     scale_factor = max_token_count/token_count
-                    substrlen = len(prompt)*scale_factor
+                    substrlen = int(len(chatlog)*scale_factor)
                     chatlog = chatlog[-substrlen:]
 
-                result, tokens_used = openai_call(chatlog,role="user", max_tokens=500, previous_messages=summary_messages)
+                result, tokens_used = openai_call(chatlog,role="user", max_tokens=max_token_count, previous_messages=summary_messages)
                 print(result)
                 print(f"TOKENS USED {tokens_used}")
+                summary = result
+                end_of_session_message = "## END OF MEETING"
                 # save the log so the chat can be rendered as old log + summary + current log
-                chat.log_historical = f"{chat.log}\n\n## END OF SESSION ##\n\n"
+                chat.log_historical = f"{chat.log_historical}\n{chat.log}\n"
                 # but start over with chat.log = just the summary as chat.log
-                chat.log = f"""
+                chat.log = f"""{end_of_session_message}
+                {summary}
+
                 # CHAT LOG - TEAM OBJECTIVE = {chat.team.objective}
-
-                {result}
     
-                Moderator: Team, continue work on your objective. Good luck.
-
+                Moderator: Welcome back, team. Continue work on your objective. Good luck.
                 """
                 chat.save()
 

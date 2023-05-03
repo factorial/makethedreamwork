@@ -165,3 +165,7 @@ ol.recent button .avatar {
 form label {
 	white-space:nowrap;
 }
+
+.role.assumption.button {
+	display:block;
+}

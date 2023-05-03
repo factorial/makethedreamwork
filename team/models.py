@@ -29,6 +29,7 @@ class Team(models.Model):
 
         for role in self.role_set.all():
             retval["team"]["roles"][role.name] = {
+                "role": role,
                 "questions": role.questions_text,
                 "guide": role.guide_text,
                 "tasks_string":  role.tasks_list_text or "",

@@ -11,7 +11,7 @@
   <body>
 	  <h1>Teamwork Makes the Dream Work</h1>
 	  <h2>Accomplish your big goal by forming a team.</h2>
-	  <form action='/team' method='post'>
+	  <form action='/team/' method='post'>
 		  {% csrf_token %}
 		  <input type='text' name='objective' placeholder='Run for office' required id='objective'>
 		  <input type='submit' value='Make a team'>
