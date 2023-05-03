@@ -63,6 +63,7 @@ class Role(models.Model):
 class Chat(models.Model):
     guid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     log = models.TextField(null=True, blank=True)
+    log_historical = models.TextField(null=True, blank=True)
 
     team = models.ForeignKey(Team, on_delete=models.CASCADE)
     human_roles =  models.ManyToManyField(Role)

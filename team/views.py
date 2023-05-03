@@ -16,6 +16,21 @@ from dotenv import load_dotenv
 import json
 import threading
 
+import re
+
+def approximate_word_count(text):
+    '''
+    Function that takes a string of text and returns an approximate word count
+    '''
+    # Remove all non-word characters
+    text = re.sub(r'\W', ' ', text)
+    # Split the string into a list of words
+    words = text.split()
+    # Count the words
+    count = len(words)
+    return count
+#test_string = "This is a test string with 12 words"
+#print(approximate_word_count(test_string)) # Output: 12 lol
 """
 Concepts
 
@@ -476,10 +491,12 @@ def create_team_chat_by_guid(request, team_guid):
             print(f"{role.guid} not in human guids {human_role_guids}")
 
         print(f"Summarizing handbook into a system prompt for role {role.name}")
-        prompt = f'Summarize the following handbook into a directive to give to an AI agent assuming the role of {role.name}: {role.guide_text}'
-        result, tokens_used = openai_call(prompt, max_tokens=3000)
-        print(result)
-        print(f"TOKEN USED {tokens_used}")
+        #prompt = f'Summarize the following handbook into a directive to give to an AI agent assuming the role of {role.name}: {role.guide_text}'
+        #result, tokens_used = openai_call(prompt, max_tokens=3000)
+        #print(f"TOKEN USED {tokens_used}")
+        result = f"""You are an expert in the role of {role.name} on this team. Team objective: '{team.objective}'.
+                You read the latest chat messages and summary and respond with a question, a command, a factual
+                response to a question, or silence. You always begin responses with '{role.name}:'."""
         role.ai_prompt = result
         role.save()
 
@@ -498,22 +515,23 @@ def chat_by_guid(request, guid=None):
 
     if not chat:
         return TemplateResponse(request, "chat.html", {})
-
-    # use this everytime the chat gets too long
-    summary_prompt = """You summarize a chat log into a brief project status recap. List the topics the team is working on with the important data points per topic."""
-
-    # Describe how each role should interact in chat - say nothing unless the objective not complete and you have something to add
-
+    
     if human_input and human_role_name:
         chat.log += f"\n\n{human_role_name}: {human_input}\n\n"
         chat.save()
-
     last_human_role_name = human_role_name
     possible_human_role_names = [role.name for role in chat.human_roles.all()]
     waiting_for_human_input = False
+
+   
+    restart_role_ring_now = False
     while not waiting_for_human_input:
-        # per role that is not human:
         for role in chat.team.role_set.all():
+            if restart_role_ring_now:
+                # Things got summarized so we have to start the chat over.
+                restart_role_ring_now = False
+                break
+            
             # move through the order until passing the last speaking human, as long as that human was in the list
             if last_human_role_name in possible_human_role_names:
                 if role.name == last_human_role_name:
@@ -527,14 +545,12 @@ def chat_by_guid(request, guid=None):
                 template_context["human_role_name"] = role.name
                 break
 
-            system_chat_instructions = f"""You are the {role.name} on this team. Our objective: {chat.team.objective}.
-            Respond with a question, answer to a previous question addressed to {role.name}, or a command. Or be silent.
-            Respond with one sentence at most.
-            Begin responses with your role name.
-            Stop responding after you ask a question or give a command.
-            Whenever it is time for another person to respond stop responding and remain silent.
-            {role.ai_prompt}
-            """
+            system_chat_instructions = f"""{role.ai_prompt}"""
+            #Respond with a question, a command, or provide a factual response to a previous question addressed to {role.name}. Or be silent.
+            #Begin responses with your role name.
+            #Stop responding after you ask a question or give a command.
+            #Whenever it is time for another person to respond stop responding and remain silent.
+            
             # Summarize chat so far.
             system_prompt = f"""{system_chat_instructions}"""
             user_prompt = f"""{chat.log or ""}\n\n"""
@@ -545,22 +561,54 @@ def chat_by_guid(request, guid=None):
             role = "assistant"
             prompt = ""
 
-            result, tokens_used = openai_call(prompt, max_tokens=3000, previous_messages=previous_messages)
+            result, tokens_used = openai_call(prompt, max_tokens=500, previous_messages=previous_messages)
             print(result)
             print(f"TOKEN USED {tokens_used}")
-            if not result:
-                chat.log += "THE END SORRY I COST MONEY"
-                waiting_for_human_input=True
-                template_context["human_role_name"] = "The end"
-                template_context["log"] = chat.log
-                return TemplateResponse(request, "chat.html", template_context)
+            if result is False:
+                # Chat's too long... 
+                # summarize it.
+                chatlog = chat.log
+                print(f"Summarizing Chat {chat.guid} so far")
+                summary_system_prompt = """You summarize a chat log into a project status recap. The recap always lists the top 5 tasks the team is working on as a todo list with assignees and the most important data points per task."""
+                summary_messages = [{"role": "system", "content": summary_system_prompt }]
+                # summary must not fail. a token is about 3/4 of a word.
+                token_count = approximate_word_count(f"{summary_system_prompt}{chatlog}") * (3/4)
+                max_token_count = 3000
+                max_word_count = int(max_token_count *4/3)
 
-            chat.log += result + "\n\n"
-            chat.save()
+                if token_count > max_token_count:
+                    scale_factor = max_token_count/token_count
+                    substrlen = len(prompt)*scale_factor
+                    chatlog = chatlog[-substrlen:]
+
+                result, tokens_used = openai_call(chatlog,role="user", max_tokens=1000, previous_messages=summary_messages)
+                print(result)
+                print(f"TOKENS USED {tokens_used}")
+                # save the log so the chat can be rendered as old log + summary + current log
+                chat.log_historical = f"{chat.log}\n\n## END OF SESSION ##\n\n"
+                # but start over with chat.log = just the summary as chat.log
+                chat.log = f"""
+                # CHAT LOG - TEAM OBJECTIVE = {chat.team.objective}
+
+                {result}
+    
+                Moderator: Team, continue work on your objective. Good luck.
+
+                """
+                chat.save()
+
+                # and then, oddly, restart the role ring. this is so shameful.
+                restart_role_ring_now = True
+            else:
+                chat.log += result + "\n\n"
+                chat.save()
+       
+        # Done with the role ring 
         if len(possible_human_role_names) == 0:
             waiting_for_human_input=True
             template_context["human_role_name"] = "Moderator"
 
     template_context["log"] = chat.log
+    
     return TemplateResponse(request, "chat.html", template_context)
 
