@@ -1,5 +1,7 @@
 from django.conf import settings
 import openai
+import time
+
 OPENAI_API_KEY=settings.OPENAI_API_KEY
 
 # Configure OpenAI

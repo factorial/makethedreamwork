@@ -1,3 +1,4 @@
+import re
 def approximate_word_count(text):
     '''
     Function that takes a string of text and returns an approximate word count

@@ -129,8 +129,7 @@ def test_generate_profile_image(request):
     mascfem = request.GET.get('mascfem', random.choice(["masculine", "feminine"]))
     add = request.GET.get('add','')
     city = request.GET.get('city', 'New York City')
-    prompt = f"3D rendered cartoon avatar of {mascfem} {add} {role} from {city}, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
-
+    prompt = prompts.AVATAR_FROM_CITY.format(mascfem=mascfem, role=role, city=city, add=add)
     print(f"trying {prompt}")
     image_url = openai_image(prompt)
     print(image_url)
@@ -171,14 +170,8 @@ def create_team_chat_by_guid(request, team_guid):
             print(f"{role.guid} not in human guids {human_role_guids}")
 
         print(f"Making AI system prompt for role {role.name}")
-        #prompt = f'Summarize the following handbook into a directive to give to an AI agent assuming the role of {role.name}: {role.guide_text}'
-        #result, tokens_used = openai_call(prompt, max_tokens=3000)
-        #print(f"TOKEN USED {tokens_used}")
-        result = f"""You are an expert in the role of {role.name} on this team. Team objective: '{team.objective}'.
-                You read the latest chat messages and summary and respond with a question, a task, a factual
-                response to a question, or silence. You always begin responses with '{role.name}:'.
-                Your responsibilities are:{role.tasks_list_js_array}{role.tasks_list_text}"""
-        role.ai_prompt = result
+        prompt = prompts.AI_ROLE_PROMPT.format(role=role.name, objective=team.objective, responsibilities=f"{role.tasks_list_js_array}{role.tasks_list_text}")
+        role.ai_prompt = prompt
         role.save()
 
     print(f"Made AI agents for {new_chat.team}.")
@@ -246,14 +239,8 @@ def chat_by_guid(request, guid=None):
                 template_context["human_role_name"] = role.name
                 break
 
-            system_chat_instructions = f"""{role.ai_prompt}"""
-            #Respond with a question, a command, or provide a factual response to a previous question addressed to {role.name}. Or be silent.
-            #Begin responses with your role name.
-            #Stop responding after you ask a question or give a command.
-            #Whenever it is time for another person to respond stop responding and remain silent.
-            
             # Summarize chat so far.
-            system_prompt = f"""{system_chat_instructions}"""
+            system_prompt = f"""{role.ai_prompt}"""
             user_prompt = f"""{chat.log or ""}\n\n"""
             previous_messages = [
                     {"role": "system", "content": system_prompt},
@@ -270,11 +257,8 @@ def chat_by_guid(request, guid=None):
                 # summarize it.
                 chatlog = chat.log
                 print(f"Summarizing Chat {chat.guid} so far")
-                #summary_system_prompt = """You summarize a chat log into a project status recap. The recap always lists the top 5 tasks the team is working on as a todo list with assignees and the most important data points per task."""
-                #summary_system_prompt = f"""You summarize a chat log into a brief project status recap. The recap includes two short sections: * Answers to the important questions so far * the top 5 currently incomplete tasks the team is working on as a todo list with assignees """
-                #summary_system_prompt = """You summarize a meeting log into a list of precisely what actions each team member will take before the next meeting and factoids discovered by the team."""
 
-                summary_system_prompt = """Produce a list of items stated as a fact."""
+                summary_system_prompt = prompts.SUMMARIZER
                 summary_messages = [{"role": "system", "content": summary_system_prompt }]
                 # summary must not fail. a token is about 3/4 of a word.
                 token_count = approximate_word_count(f"{summary_system_prompt}{chatlog}") * (4/3)

@@ -232,7 +232,7 @@ class Role(models.Model):
         
         mascfem = random.choice(["masculine ", "feminine ", ""])
         city = "Atlanta"
-        prompt = prompts.AVATAR_FROM_CITY.format(mascfem=mascfem, role=self.name, city=city)
+        prompt = prompts.AVATAR_FROM_CITY.format(mascfem=mascfem, role=self.name, city=city, add='')
         new_image_url = openai_image(prompt=prompt)
         if not new_image_url:
             # try generating a stranger instead
