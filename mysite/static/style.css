@@ -169,3 +169,14 @@ form label {
 .role.assumption.button {
 	display:block;
 }
+
+ul.avatars {
+	text-align:center;
+}
+ul.avatars li {
+	width:100px;
+	display:inline-block;
+}
+ul.avatars avatar.heading img {
+	border:2px;
+}

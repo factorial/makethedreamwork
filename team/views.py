@@ -50,8 +50,15 @@ Concepts
 MAYBE TODO
 - UI that allows user to reply directly to comments from AI, effectively repeating 
   user input directly before it's the AI target user's turn to speak.
-- Gather facts & tasks after every round of chat and present it to the user
-  as well as to each agent when prompting for that agent's response.
+- Let users sign up and volunteer for roles
+- Gather facts & tasks after every round of chat and keep a running list
+  present it to the user as well as maybe to each agent when prompting 
+  for that agent's response.
+- UI that lets user give one agent focus, letting them request 
+  longer completions and prompting differently to get detailed response.
+- UI for standard commands like 
+  You have all completed your tasks. Please share what you learned.
+  Everyone list your next todo item.
 """
 
 OPENAI_API_KEY=settings.OPENAI_API_KEY
@@ -630,7 +637,7 @@ def chat_by_guid(request, guid=None):
                 summary = result
                 end_of_session_message = "## END OF MEETING"
                 # save the log so the chat can be rendered as old log + summary + current log
-                chat.log_historical = f"{chat.log_historical}\n{chat.log}\n"
+                chat.log_historical = f"{chat.log_historical or ''}\n{chat.log}\n"
                 # but start over with chat.log = just the summary as chat.log
                 chat.log = f"""{end_of_session_message}
                 {summary}
