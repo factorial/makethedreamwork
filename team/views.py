@@ -6,31 +6,20 @@ from django.conf import settings
 from django.urls import reverse
 
 from team.models import Team, Chat
+from team.openai import openai_call
+#from team.prompts import 
+from team.utils import approximate_word_count
+
 import requests
 import uuid
 import random
 import os
 import time
 import openai
-from dotenv import load_dotenv
 import json
 import threading
-
 import re
 
-def approximate_word_count(text):
-    '''
-    Function that takes a string of text and returns an approximate word count
-    '''
-    # Remove all non-word characters
-    text = re.sub(r'\W', ' ', text)
-    # Split the string into a list of words
-    words = text.split()
-    # Count the words
-    count = len(words)
-    return count
-#test_string = "This is a test string with 12 words"
-#print(approximate_word_count(test_string)) # Output: 12 lol
 """
 Concepts
 
@@ -61,89 +50,9 @@ MAYBE TODO
   Everyone list your next todo item.
 """
 
-OPENAI_API_KEY=settings.OPENAI_API_KEY
-
-# Model: GPT, LLAMA, HUMAN, etc.
-LLM_MODEL = os.getenv("LLM_MODEL", os.getenv("OPENAI_API_MODEL", "gpt-3.5-turbo")).lower()
-
-# Model configuration
-OPENAI_TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", 0.5))
-
-# Configure OpenAI
-openai.api_key = OPENAI_API_KEY
-render_images = True
-
-def openai_call(
-      prompt: str,
-      model: str = LLM_MODEL,
-      temperature: float = OPENAI_TEMPERATURE,
-      max_tokens: int = 100,
-      role: str = "system",
-      previous_messages: list = None
-):
-        max_retries = 5
-        for retries in range(0, max_retries):
-            try:
-                # Use chat completion API
-                if not previous_messages:
-                    messages = [{"role": role, "content": prompt}]
-                else:
-                    messages = previous_messages + [{"role": role, "content": prompt}]
-                response = openai.ChatCompletion.create(
-                    model=model,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    n=1,
-                    stop=None,
-                )
-                return (response.choices[0].message.content.strip(), response.usage.total_tokens)
-            except openai.error.RateLimitError:
-                print(
-                    "   *** The OpenAI API rate limit has been exceeded. Waiting 10 seconds and trying again. ***"
-                )
-                time.sleep(10)  # Wait 10 seconds and try again
-                continue
-            except openai.error.Timeout:
-                print(
-                    "   *** OpenAI API timeout occured. Waiting 10 seconds and trying again. ***"
-                )
-                time.sleep(10)  # Wait 10 seconds and try again
-                continue
-            except openai.error.APIError:
-                print(
-                    "   *** OpenAI API error occured. Waiting 10 seconds and trying again. ***"
-                )
-                time.sleep(10)  # Wait 10 seconds and try again
-                continue
-            except openai.error.APIConnectionError:
-                print(
-                    "   *** OpenAI API connection error occured. Check your network settings, proxy configuration, SSL certificates, or firewall rules. Waiting 10 seconds and trying again. ***"
-                )
-                time.sleep(10)  # Wait 10 seconds and try again
-                continue
-            except openai.error.InvalidRequestError as e:
-                print(
-                        f"   *** OpenAI API invalid request. {e} Check the documentation for the specific API method you are calling and make sure you are sending valid and complete parameters. Waiting 10 seconds and bailing. "
-                )
-                time.sleep(10)  # Wait 10 seconds and try again
-                retries=max_retries
-            except openai.error.ServiceUnavailableError:
-                print(
-                    "   *** OpenAI API service unavailable. Waiting 10 seconds and trying again. ***"
-                )
-                time.sleep(10)  # Wait 10 seconds and try again
-                continue
-            else:
-                break
-            
-            print(
-                "   *** OpenAI API max retries or weird error hit, so bailing on request & returning false."
-            )
-            return False, 0
 
 def create_and_generate_team(OBJECTIVE):
-    print(f'shall I reject {OBJECTIVE} team?')
+    print(f'Creating & generatsng team. First, shall I reject {OBJECTIVE} team?')
 
     prompt = f'Yes or no: is the following objective offensive or inappropriate: "{OBJECTIVE}"? Answer with only yes or no.'
     result, tokens_used = openai_call(prompt, max_tokens=100)
@@ -155,43 +64,43 @@ def create_and_generate_team(OBJECTIVE):
     new_team = Team(objective=OBJECTIVE)
     new_team.save()
     guid = new_team.guid
-    print("launching thread for generate_team")
+    print(f"Launching thread to generate_team {new_team}...")
 
     t = threading.Thread(target=generate_team,args=[OBJECTIVE, guid], daemon=True)
     t.start()
 
-    print("thread for generate_team launched")
+    print(f"Thread for generate_team {new_team} launched.")
     return guid
 
 def generate_team(OBJECTIVE, guid):
-    print(f"generating team for {OBJECTIVE} guid {guid}")
+    print(f"Generating team for {OBJECTIVE} guid {guid}")
     start_time = time.time()
 
     progress_points_total = 0
 
     # fetch Team instance
-    print(f"fetching team objects for {OBJECTIVE} guid {guid}")
-    team = Team.objects.get(guid=guid)
-    print(f"got team objects for {OBJECTIVE} guid {guid}")
-    if not team:
-        print("something went wrong.")
+    print(f"Fetching team object for {OBJECTIVE} guid {guid}")
+    try:
+        team = Team.objects.get(guid=guid)
+    except:
+        print(f"FATAL: Something went wrong fetching team object for {OBJECTIVE} guid {guid}.")
         return
+    print(f"Got team {team}")
 
     context = ""
-    print(f"prompt building for {OBJECTIVE} guid {guid}")
+    print(f"Prompt building for team {team}")
     prompt = f"""
         OBJECTIVE: {OBJECTIVE}
         TASK: Write instructions for a team of humans to execute. Respond with a JSON object whose keys are
         unique role names on the team and each key contains a task list for that unique role.
         RESPONSE (JSON format only):"""
-    print(f"calling openai for team for {OBJECTIVE} guid {guid}")
+    print(f"Calling openai for team {team}")
     result, tokens_used = openai_call(prompt, max_tokens=3000)
     print(result)
     print(f"TOKENS USED: {tokens_used}")
     if not result:
-        print("something went wrong 2.")
+        print(f"Something went wrong getting team roles for {team}.")
         return
-
 
     team.description=result
     team.tokens_used += tokens_used
@@ -203,30 +112,31 @@ def generate_team(OBJECTIVE, guid):
     role_tasks = {}
     try:
         role_tasks = json.loads(f"{result}")
-        print(f"parsed {result} into json {role_tasks}")
+        print(f"Parsed {team} into json {role_tasks}")
     except:
-        print("Couldn't parse {result}.")
+        print("Couldn't parse {result}. No role_tasks for {team}")
 
     valid_json = False
     while not valid_json:
         prompt = f"{context} List the roles on this team as a JavaScript array of strings. RESULT:["
         result, tokens_used = openai_call(prompt)
-        print("["+ result)
+        result = "["+result
+        print(result)
         print(f"TOKENS USED: {tokens_used}")
         if not result:
-            print("something went wrong 3.")
+            print(f"Something went wrong getting openai JS array roles out of team description for {team}.")
             return
         team.tokens_used += tokens_used
         team.generation_progress_percent = 20 
         team.save()
 
-
         context = prompt + result
 
         try:
-            roles = json.loads(f"[{result}")
+            roles = json.loads(f"{result}")
             valid_json = True
         except:
+            print(f"Something went wrong PARSING openai's JS array roles out of team description for {team} Asking again forever.")
             prompt = f"{context} That was not valid JavaScript array syntax. Try again:\n"
 
     progress_points = 0
@@ -234,6 +144,7 @@ def generate_team(OBJECTIVE, guid):
     total_progress_points = len(roles)*steps_per_role
     base_progress_percent = 20
     for idx, role in enumerate(roles):
+        print(f"Generating role {role} for {team}...")
         loop_context = context
         prompt = f"""{loop_context}
         You are a new member on this team, assuming the role of {role}. List the questions you want to ask an
@@ -269,20 +180,20 @@ def generate_team(OBJECTIVE, guid):
             print("something went wrong 5.")
             return
 
-
         new_role.guide_text =result
         if role in role_tasks:
+            print(f"Yes, {role} is in {role_tasks}")
             if isinstance(role_tasks[role], list):
-                print("saving tasks a list")
+                print("Saving tasks as a list from list")
                 new_role.tasks_list_js_array=json.dumps(role_tasks[role])
             elif isinstance(role_tasks[role], dict):
-                print("saving tasks as a different list")
+                print("Saving tasks as a list from dict")
                 new_role.tasks_list_js_array=json.dumps([role_tasks[role][key] for key in role_tasks[role]])
             else:
-                print("saving tasks a string")
+                print("Saving tasks as a string")
                 new_role.tasks_list_text=json.dumps(role_tasks[role])
         else:
-            print(f"no, {role} not in {role_tasks}")
+            print(f"No, {role} is not in {role_tasks}, so this role gets no tasks.")
 
         new_role.save()
 
@@ -291,103 +202,104 @@ def generate_team(OBJECTIVE, guid):
         team.generation_progress_percent = round(base_progress_percent + ((100-base_progress_percent)*(progress_points/total_progress_points)))
         team.save()
 
-        if render_images:
-            generate_stranger = False
-            mascfem = random.choice(["masculine ", "feminine ", ""])
-            #city = "New York City"
-            city = "Atlanta"
-            #city = random.choice(["New York City", "Atlanta"])
-            prompt = f"3D rendered cartoon avatar of {mascfem}{role} from {city}, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, NOT ugly, NOT disfigured, NOT bad"
+        #generate_image_for_role()
 
-            max_retries = 5
+        generate_stranger = False
+        mascfem = random.choice(["masculine ", "feminine ", ""])
+        city = "Atlanta"
+        prompt = f"3D rendered cartoon avatar of {mascfem}{role} from {city}, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, NOT ugly, NOT disfigured, NOT bad"
 
-            for retries in range(0, max_retries):
-                try:
-                    if generate_stranger:
-                        prompt = f"3D rendered cartoon avatar of {mascfem}human from New York City, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
-                    response = openai.Image.create(
-                        prompt=prompt,
-                        n=1,
-                        size="512x512"
-                    )
-                    image_url = response['data'][0]['url']
-                    print(image_url)
-                    new_role.image_url=image_url
-                    new_role.save()
-                    break
-                except openai.error.RateLimitError:
-                    print(f"***Error generating image for {role}.")
-                    print(
-                        "   *** The OpenAI API rate limit has been exceeded. Waiting 10 seconds and trying again. ***"
-                    )
-                    time.sleep(10)  # Wait 10 seconds and try again
-                    continue
-                except openai.error.Timeout:
-                    print(f"***Error generating image for {role}.")
-                    print(
-                        "   *** OpenAI API timeout occured. Waiting 10 seconds and trying again. ***"
-                    )
-                    time.sleep(10)  # Wait 10 seconds and try again
-                    continue
-                except openai.error.APIError:
-                    print(f"***Error generating image for {role}.")
-                    print(
-                        "   *** OpenAI API error occured. Waiting 10 seconds and trying again. ***"
-                    )
-                    time.sleep(10)  # Wait 10 seconds and try again
-                    continue
-                except openai.error.APIConnectionError:
-                    print(f"***Error generating image for {role}.")
-                    print(
-                        "   *** OpenAI API connection error occured. Check your network settings, proxy configuration, SSL certificates, or firewall rules. Waiting 10 seconds and trying again. ***"
-                    )
-                    time.sleep(10)  # Wait 10 seconds and try again
-                    continue
-                except openai.error.InvalidRequestError:
-                    print(f"***Error generating image for {role}.")
-                    print(
-                        "   *** OpenAI API invalid request. Check the documentation for the specific API method you are calling and make sure you are sending valid and complete parameters. Generating stranger image instead. ***"
-                    )
-                    generate_stranger = True
-                    continue
-                except openai.error.ServiceUnavailableError:
-                    print(f"***Error generating image for {role}.")
-                    print(
-                        "   *** OpenAI API service unavailable. Waiting 10 seconds and trying again. ***"
-                    )
-                    time.sleep(10)  # Wait 10 seconds and try again
-                    continue
-                else:
-                    print(f"***Error generating image for {role}.")
-                    break
-            print("done with image")
-            progress_points = progress_points + 1
-            team.generation_progress_percent = round(base_progress_percent + ((100-base_progress_percent)*(progress_points/total_progress_points)))
-            team.save()
+        max_retries = 5
+
+        for retries in range(0, max_retries):
+            try:
+                if generate_stranger:
+                    prompt = f"3D rendered cartoon avatar of {mascfem}human from New York City, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
+                response = openai.Image.create(
+                    prompt=prompt,
+                    n=1,
+                    size="512x512"
+                )
+                image_url = response['data'][0]['url']
+                print(image_url)
+                new_role.image_url=image_url
+                new_role.save()
+                break
+            except openai.error.RateLimitError:
+                print(f"***Error generating image for {role}.")
+                print(
+                    "   *** The OpenAI API rate limit has been exceeded. Waiting 10 seconds and trying again. ***"
+                )
+                time.sleep(10)  # Wait 10 seconds and try again
+                continue
+            except openai.error.Timeout:
+                print(f"***Error generating image for {role}.")
+                print(
+                    "   *** OpenAI API timeout occured. Waiting 10 seconds and trying again. ***"
+                )
+                time.sleep(10)  # Wait 10 seconds and try again
+                continue
+            except openai.error.APIError:
+                print(f"***Error generating image for {role}.")
+                print(
+                    "   *** OpenAI API error occured. Waiting 10 seconds and trying again. ***"
+                )
+                time.sleep(10)  # Wait 10 seconds and try again
+                continue
+            except openai.error.APIConnectionError:
+                print(f"***Error generating image for {role}.")
+                print(
+                    "   *** OpenAI API connection error occured. Check your network settings, proxy configuration, SSL certificates, or firewall rules. Waiting 10 seconds and trying again. ***"
+                )
+                time.sleep(10)  # Wait 10 seconds and try again
+                continue
+            except openai.error.InvalidRequestError:
+                print(f"***Error generating image for {role}.")
+                print(
+                    "   *** OpenAI API invalid request. Check the documentation for the specific API method you are calling and make sure you are sending valid and complete parameters. Generating stranger image instead. ***"
+                )
+                generate_stranger = True
+                continue
+            except openai.error.ServiceUnavailableError:
+                print(f"***Error generating image for {role}.")
+                print(
+                    "   *** OpenAI API service unavailable. Waiting 10 seconds and trying again. ***"
+                )
+                time.sleep(10)  # Wait 10 seconds and try again
+                continue
+            else:
+                print(f"***Error generating image for {role}.")
+                break
+        print("done with image")
+
+        progress_points = progress_points + 1
+        team.generation_progress_percent = round(base_progress_percent + ((100-base_progress_percent)*(progress_points/total_progress_points)))
+        team.save()
 
     end_time = time.time()
     print(end_time)
     total_time_mins = (end_time - start_time)/60
-    print(f"That took {total_time_mins} minutes. Serving page, then saving images.")
+    print(f"Generating {team} took {total_time_mins} minutes.")
 
     for idx, role in enumerate(team.role_set.all()):
         file_name = str(uuid.uuid4()) + ".png"
         file_path = os.path.join(settings.DOWNLOAD_IMAGES_ROOT, file_name)
         img_data = requests.get(role.image_url).content
+        print(f"Downloading {role.image_url} and writing to {file_path}")
         with open(file_path, 'wb') as handler:
             handler.write(img_data)
-            print(f"Downloaded and wrote to {file_path}")
             role.image_url = f'{settings.DOWNLOAD_IMAGES_URL}/{file_name}'
             role.save()
-            print(f"Saved image url to our image. {role.image_url} now")
+            print(f"Saved image. It's at {role.image_url} now")
     
     end_time = time.time()
     total_time_mins = (end_time - start_time)/60
 
+    # calculate_cost()
     cost_per_token = (0.002/1000)
     cost_per_image = (0.018)
     cost = (team.tokens_used * cost_per_token) + (cost_per_image * team.role_set.count())
-    print(f"After downloading {team.role_set.count()} images, that took {total_time_mins} minutes and {team.tokens_used} tokens (${cost}).")
+    print(f"After downloading {team.role_set.count()} images, {team} took {total_time_mins} minutes & {team.tokens_used} tokens (${cost}).")
 
 
 
