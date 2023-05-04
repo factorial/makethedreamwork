@@ -221,10 +221,10 @@ def chat_by_guid(request, guid=None):
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt }
                     ]
-            role = "assistant"
+            openai_role = "assistant"
             prompt = ""
 
-            result, tokens_used = openai_call(prompt, max_tokens=500, previous_messages=previous_messages)
+            result, tokens_used = openai_call(prompt,role=openai_role, max_tokens=2000, previous_messages=previous_messages)
             print(result)
             print(f"TOKEN USED {tokens_used}")
             if result is False:
@@ -232,7 +232,7 @@ def chat_by_guid(request, guid=None):
                 chat.summarize_and_save()
                 summary=True
             else:
-                chat.log += result + "\n\n"
+                chat.log += f"{role.name}: {result}\n\n"
                 chat.save()
        
         # Done with the role ring 

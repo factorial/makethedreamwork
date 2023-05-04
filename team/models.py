@@ -302,7 +302,7 @@ class Chat(models.Model):
         summary_messages = [{"role": "system", "content": summary_system_prompt }]
         # summary must not fail. a token is about 3/4 of a word.
         token_count = approximate_word_count(f"{summary_system_prompt}{chatlog}") * (4/3)
-        max_token_count = 1000
+        max_token_count = 2000
 
         if token_count > max_token_count:
             scale_factor = max_token_count/token_count
