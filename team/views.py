@@ -198,16 +198,10 @@ def chat_by_guid(request, guid=None):
     
 
     summary = None
-    restart_role_ring_now = False
     print(f"{ waiting_for_human_input } - human turn?")
     while not waiting_for_human_input:
         print(f"Rotating through all roles in team {chat.team}")
         for role in chat.team.role_set.all():
-            if restart_role_ring_now:
-                # Things got summarized so we have to start the chat over.
-                restart_role_ring_now = False
-                break
-        
             # move through the order until passing the last speaking human, as long as that human was in the list
             if last_human_role_name in possible_human_role_names:
                 if role.name == last_human_role_name:
@@ -236,9 +230,7 @@ def chat_by_guid(request, guid=None):
             if result is False:
                 # Summarize chat so far.
                 chat.summarize_and_save()
-
-                # and then, oddly, restart the role ring. this is so shameful.
-                restart_role_ring_now = True
+                summary=True
             else:
                 chat.log += result + "\n\n"
                 chat.save()
