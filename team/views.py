@@ -7,8 +7,8 @@ from django.urls import reverse
 
 from team.models import Team, Chat
 from team.openai import openai_call, openai_image
-#from team.prompts import 
 from team.utils import approximate_word_count
+from team import prompts
 
 import requests
 import uuid

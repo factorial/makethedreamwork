@@ -3,6 +3,7 @@ from django.db import models
 from django.utils import timezone
 
 from team.openai import openai_call, openai_image
+from team import prompts
 import requests
 import os
 import openai
@@ -27,9 +28,8 @@ class Team(models.Model):
 
     @classmethod
     def create_and_generate_team(cls, OBJECTIVE):
-        print(f'Creating & generating team. First, shall I reject {OBJECTIVE} team?')
-
-        prompt = f'Yes or no: is the following objective offensive or inappropriate: "{OBJECTIVE}"? Answer with only yes or no.'
+        prompt = prompts.CHECK_OFFENSE.format(OBJECTIVE=OBJECTIVE)
+        print(prompt)
         result, tokens_used = openai_call(prompt, max_tokens=100)
         print("Offensive? "+ result)
         if not result or 'yes' in result.lower():
@@ -55,11 +55,7 @@ class Team(models.Model):
 
         context = ""
         print(f"Prompt building for team {self}")
-        prompt = f"""
-            OBJECTIVE: {self.objective}
-            TASK: Write instructions for a team of humans to execute. Respond with a JSON object whose keys are
-            unique role names on the team and each key contains a task list for that unique role.
-            RESPONSE (JSON format only):"""
+        prompt = prompts.DEFINE_TEAM.format(objective=self.objective)
         print(f"Calling openai for team {self}")
         result, tokens_used = openai_call(prompt, max_tokens=3000)
         print(result)
@@ -84,7 +80,7 @@ class Team(models.Model):
 
         valid_json = False
         while not valid_json:
-            prompt = f"{context} List the roles on this team as a JavaScript array of strings. RESULT:["
+            prompt = prompts.LIST_ROLES.format(context=context)
             result, tokens_used = openai_call(prompt)
             result = "["+result
             print(result)
@@ -103,7 +99,7 @@ class Team(models.Model):
                 valid_json = True
             except:
                 print(f"Something went wrong PARSING openai's JS array roles out of team description for {self} Asking again forever.")
-                prompt = f"{context} That was not valid JavaScript array syntax. Try again:\n"
+                prompt = prompts.JAVASCRIPT_ERROR.format(context=context)
 
         progress_points = 0
         steps_per_role = 3
@@ -112,10 +108,7 @@ class Team(models.Model):
         for role in roles:
             print(f"Generating role {role} for {self}...")
             loop_context = context
-            prompt = f"""{loop_context}
-            You are a new member on this team, assuming the role of {role}. List the questions you want to ask an
-            expert in this role so they can give you the answers that will make you successful at your tasks and able to
-            effectively collaborate toward the real-world objective: {self.objective}."""
+            prompt = prompts.NEW_MEMBER_QUESTIONS.format(context=loop_context, role=role, objective=self.objective)
             result, tokens_used = openai_call(prompt, max_tokens=3000)
             print(result)
             print(f"TOKENS USED: {tokens_used}")
@@ -134,11 +127,8 @@ class Team(models.Model):
 
             loop_context = prompt + result
 
-            prompt = f"""{loop_context}
-                    You are an expert in the role of {role} on this team. Generate a handbook for the new member in this
-                    role using Markdown format. In it, answer the new member's specific questions in depth.
-                    Also include in the handbook a guide which describes step-by-step a typical day in the life of a person in this role
-                    on this team."""
+            prompt = prompts.GENERATE_HANDBOOK.format(context=loop_context, role=role)
+
             result, tokens_used = openai_call(prompt, max_tokens=3000)
             print(result)
             print(f"TOKENS USED: {tokens_used}")
@@ -242,12 +232,11 @@ class Role(models.Model):
         
         mascfem = random.choice(["masculine ", "feminine ", ""])
         city = "Atlanta"
-        prompt = f"3D rendered cartoon avatar of {mascfem}{self.name} from {city}, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, NOT ugly, NOT disfigured, NOT bad"
-
+        prompt = prompts.AVATAR_FROM_CITY.format(mascfem=mascfem, role=self.name, city=city)
         new_image_url = openai_image(prompt=prompt)
         if not new_image_url:
             # try generating a stranger instead
-            prompt = f"3D rendered cartoon avatar of {mascfem}person, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
+            prompt = prompts.AVATAR.format(mascfem=mascfem)
             new_image_url = openai_image(prompt=prompt)
 
         print(f"Response generating image for {self}: {new_image_url}")
