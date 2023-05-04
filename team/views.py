@@ -48,6 +48,8 @@ Concepts
 
 """
 MAYBE TODO
+- UI that allows user to reply directly to comments from AI, effectively repeating 
+  user input directly before it's the AI target user's turn to speak.
 - Gather facts & tasks after every round of chat and present it to the user
   as well as to each agent when prompting for that agent's response.
 """
