@@ -1,5 +1,5 @@
 static/
-mysite/secrets.py
+secrets.py
 db.sqlite3
 *.sw?
 *.pyc
