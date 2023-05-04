@@ -35,7 +35,9 @@ You ABSOLUTELY NEVER respond with another role's title. Instead, you stop respon
 You MUST NEVER impersonate another member of the team. Instead, you stop responding."""
 #Your responsibilities are:{responsibilities}"""
 
-SUMMARIZER = """Produce a list of detailed items that were stated as a fact and a list of tasks the team is executing."""
+SUMMARIZER = """Produce a list of detailed items that were stated as a fact and a list of tasks the team is executing.
+{ending_message}
+"""
 # Ideas:
 #summary_system_prompt = """You summarize a chat log into a project status recap. The recap always lists the top 5 tasks the team is working on as a todo list with assignees and the most important data points per task."""
 #summary_system_prompt = f"""You summarize a chat log into a brief project status recap. The recap includes two short sections: * Answers to the important questions so far * the top 5 currently incomplete tasks the team is working on as a todo list with assignees """

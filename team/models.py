@@ -293,12 +293,12 @@ class Chat(models.Model):
         return f"Chat ({self.guid}) for {self.team.objective} team"
 
     def summarize_and_save(self):
-        end_of_session_message = "## END OF MEETING"
+        end_of_session_message = "## END OF MEETING SUMMARY"
 
         chatlog = self.log
         print(f"Summarizing Chat {self.guid} so far")
 
-        summary_system_prompt = prompts.SUMMARIZER
+        summary_system_prompt = prompts.SUMMARIZER.format(ending_message = ending_of_session_message)
         summary_messages = [{"role": "system", "content": summary_system_prompt }]
         # summary must not fail. a token is about 3/4 of a word.
         token_count = approximate_word_count(f"{summary_system_prompt}{chatlog}") * (4/3)
@@ -317,12 +317,12 @@ class Chat(models.Model):
         self.log_historical = f"{self.log_historical or ''}\n{self.log}\n"
         # but start over with chat.log = just the summary as chat.log
         self.log = f"""{end_of_session_message}
-        {summary}
+{summary}
 
-        # CHAT LOG - TEAM OBJECTIVE = {self.team.objective}
+# CHAT LOG - TEAM OBJECTIVE = {self.team.objective}
 
-        Moderator: Welcome back, team. Continue work on your objective. Good luck.
-        """
+Moderator: Welcome back, team. Continue work on your objective. Good luck.
+"""
         self.save()
 
 
