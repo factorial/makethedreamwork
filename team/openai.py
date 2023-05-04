@@ -74,9 +74,9 @@ def openai_call(
             )
             return False, 0
 
-def openai_avatar_image():
-    prompt = f"3D rendered cartoon avatar of {mascfem}person, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
+def openai_image(prompt):
     max_retries = 5
+    failure_return_value = False
     for retries in range(0, max_retries):
         try:
             response = openai.Image.create(
@@ -86,40 +86,38 @@ def openai_avatar_image():
             )
             image_url = response['data'][0]['url']
             print(image_url)
-            self.image_url=image_url
-            self.save()
-            break
+            return image_url
+
         except openai.error.RateLimitError:
-            print(f"***Error generating image for {self}.")
+            print(f"***Error generating image for {prompt}.")
             print("   *** The OpenAI API rate limit has been exceeded. Waiting 10 seconds and trying again. ***")
             time.sleep(10)  # Wait 10 seconds and try again
             continue
         except openai.error.Timeout:
-            print(f"***Error generating image for {self}.")
+            print(f"***Error generating image for {prompt}.")
             print("   *** OpenAI API timeout occured. Waiting 10 seconds and trying again. ***")
             time.sleep(10)  # Wait 10 seconds and try again
             continue
         except openai.error.APIError:
-            print(f"***Error generating image for {self}.")
+            print(f"***Error generating image for {prompt}.")
             print( "   *** OpenAI API error occured. Waiting 10 seconds and trying again. ***")
             time.sleep(10)  # Wait 10 seconds and try again
             continue
         except openai.error.APIConnectionError:
-            print(f"***Error generating image for {self}.")
+            print(f"***Error generating image for {prompt}.")
             print( "   *** OpenAI API connection error occured. Check your network settings, proxy configuration, SSL certificates, or firewall rules. Waiting 10 seconds and trying again. ***")
             time.sleep(10)  # Wait 10 seconds and try again
             continue
         except openai.error.InvalidRequestError:
-            print(f"***Error generating image for {self}.")
-            print( "   *** OpenAI API invalid request. Check the documentation for the specific API method you are calling and make sure you are sending valid and complete parameters. Generating stranger image instead. ***")
-            generate_stranger = True
-            continue
+            print(f"***Error generating image for {prompt}.")
+            print(f"   *** OpenAI API invalid request. Check the documentation for the specific API method you are calling and make sure you are sending valid and complete parameters. Bailing immediately, returning {failure_return_value}. ***")
+            return failure_return_value
         except openai.error.ServiceUnavailableError:
-            print(f"***Error generating image for {self}.")
+            print(f"***Error generating image for {prompt}.")
             print( "   *** OpenAI API service unavailable. Waiting 10 seconds and trying again. ***")
             time.sleep(10)  # Wait 10 seconds and try again
             continue
         else:
-            print(f"***FATAL Error generating image for {self}.")
+            print(f"***FATAL Error generating image for {prompt}.")
             break
 

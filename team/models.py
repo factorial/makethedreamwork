@@ -2,7 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-from team.openai import openai_call
+from team.openai import openai_call, openai_image
 import requests
 import os
 import openai
@@ -238,62 +238,24 @@ class Role(models.Model):
         return f"{self.name} ({self.guid}) on {self.team.objective} team"
 
     def generate_image(self):
-        max_retries = 5
         print(f"Generating image for {self}")
         
-        generate_stranger = False
         mascfem = random.choice(["masculine ", "feminine ", ""])
         city = "Atlanta"
         prompt = f"3D rendered cartoon avatar of {mascfem}{self.name} from {city}, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, NOT ugly, NOT disfigured, NOT bad"
 
-        for retries in range(0, max_retries):
-            try:
-                if generate_stranger:
-                    prompt = f"3D rendered cartoon avatar of {mascfem}person, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
-                response = openai.Image.create(
-                    prompt=prompt,
-                    n=1,
-                    size="512x512"
-                )
-                image_url = response['data'][0]['url']
-                print(image_url)
-                self.image_url=image_url
-                self.save()
-                break
-            except openai.error.RateLimitError:
-                print(f"***Error generating image for {self}.")
-                print("   *** The OpenAI API rate limit has been exceeded. Waiting 10 seconds and trying again. ***")
-                time.sleep(10)  # Wait 10 seconds and try again
-                continue
-            except openai.error.Timeout:
-                print(f"***Error generating image for {self}.")
-                print("   *** OpenAI API timeout occured. Waiting 10 seconds and trying again. ***")
-                time.sleep(10)  # Wait 10 seconds and try again
-                continue
-            except openai.error.APIError:
-                print(f"***Error generating image for {self}.")
-                print( "   *** OpenAI API error occured. Waiting 10 seconds and trying again. ***")
-                time.sleep(10)  # Wait 10 seconds and try again
-                continue
-            except openai.error.APIConnectionError:
-                print(f"***Error generating image for {self}.")
-                print( "   *** OpenAI API connection error occured. Check your network settings, proxy configuration, SSL certificates, or firewall rules. Waiting 10 seconds and trying again. ***")
-                time.sleep(10)  # Wait 10 seconds and try again
-                continue
-            except openai.error.InvalidRequestError:
-                print(f"***Error generating image for {self}.")
-                print( "   *** OpenAI API invalid request. Check the documentation for the specific API method you are calling and make sure you are sending valid and complete parameters. Generating stranger image instead. ***")
-                generate_stranger = True
-                continue
-            except openai.error.ServiceUnavailableError:
-                print(f"***Error generating image for {self}.")
-                print( "   *** OpenAI API service unavailable. Waiting 10 seconds and trying again. ***")
-                time.sleep(10)  # Wait 10 seconds and try again
-                continue
-            else:
-                print(f"***FATAL Error generating image for {self}.")
-                break
-        print("Generated image on openai side for {self}.")
+        new_image_url = openai_image(prompt=prompt)
+        if not new_image_url:
+            # try generating a stranger instead
+            prompt = f"3D rendered cartoon avatar of {mascfem}person, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
+            new_image_url = openai_image(prompt=prompt)
+
+        print(f"Response generating image for {self}: {new_image_url}")
+        if new_image_url:
+            self.image_url=new_image_url
+            self.save()
+        else:
+            print(f"That's a major error generating image for {self}")
 
     def persist_image(self):
         file_name = str(uuid.uuid4()) + ".png"

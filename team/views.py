@@ -6,7 +6,7 @@ from django.conf import settings
 from django.urls import reverse
 
 from team.models import Team, Chat
-from team.openai import openai_call
+from team.openai import openai_call, openai_image
 #from team.prompts import 
 from team.utils import approximate_word_count
 
@@ -132,12 +132,7 @@ def test_generate_profile_image(request):
     prompt = f"3D rendered cartoon avatar of {mascfem} {add} {role} from {city}, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
 
     print(f"trying {prompt}")
-    response = openai.Image.create(
-        prompt=prompt,
-        n=1,
-        size="512x512"
-    )
-    image_url = response['data'][0]['url']
+    image_url = openai_image(prompt)
     print(image_url)
     return HttpResponse(f'<img src="{image_url}">')
 
