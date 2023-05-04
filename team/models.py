@@ -1,7 +1,10 @@
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
 from team.openai import openai_call
+import requests
+import os
 import openai
 import json
 import time
@@ -106,7 +109,7 @@ class Team(models.Model):
         steps_per_role = 3
         total_progress_points = len(roles)*steps_per_role
         base_progress_percent = 20
-        for idx, role in enumerate(roles):
+        for role in roles:
             print(f"Generating role {role} for {self}...")
             loop_context = context
             prompt = f"""{loop_context}
@@ -165,75 +168,7 @@ class Team(models.Model):
             self.generation_progress_percent = round(base_progress_percent + ((100-base_progress_percent)*(progress_points/total_progress_points)))
             self.save()
 
-            #generate_image_for_role()
-
-            generate_stranger = False
-            mascfem = random.choice(["masculine ", "feminine ", ""])
-            city = "Atlanta"
-            prompt = f"3D rendered cartoon avatar of {mascfem}{role} from {city}, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, NOT ugly, NOT disfigured, NOT bad"
-
-            max_retries = 5
-
-            for retries in range(0, max_retries):
-                try:
-                    if generate_stranger:
-                        prompt = f"3D rendered cartoon avatar of {mascfem}human from New York City, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
-                    response = openai.Image.create(
-                        prompt=prompt,
-                        n=1,
-                        size="512x512"
-                    )
-                    image_url = response['data'][0]['url']
-                    print(image_url)
-                    new_role.image_url=image_url
-                    new_role.save()
-                    break
-                except openai.error.RateLimitError:
-                    print(f"***Error generating image for {role}.")
-                    print(
-                        "   *** The OpenAI API rate limit has been exceeded. Waiting 10 seconds and trying again. ***"
-                    )
-                    time.sleep(10)  # Wait 10 seconds and try again
-                    continue
-                except openai.error.Timeout:
-                    print(f"***Error generating image for {role}.")
-                    print(
-                        "   *** OpenAI API timeout occured. Waiting 10 seconds and trying again. ***"
-                    )
-                    time.sleep(10)  # Wait 10 seconds and try again
-                    continue
-                except openai.error.APIError:
-                    print(f"***Error generating image for {role}.")
-                    print(
-                        "   *** OpenAI API error occured. Waiting 10 seconds and trying again. ***"
-                    )
-                    time.sleep(10)  # Wait 10 seconds and try again
-                    continue
-                except openai.error.APIConnectionError:
-                    print(f"***Error generating image for {role}.")
-                    print(
-                        "   *** OpenAI API connection error occured. Check your network settings, proxy configuration, SSL certificates, or firewall rules. Waiting 10 seconds and trying again. ***"
-                    )
-                    time.sleep(10)  # Wait 10 seconds and try again
-                    continue
-                except openai.error.InvalidRequestError:
-                    print(f"***Error generating image for {role}.")
-                    print(
-                        "   *** OpenAI API invalid request. Check the documentation for the specific API method you are calling and make sure you are sending valid and complete parameters. Generating stranger image instead. ***"
-                    )
-                    generate_stranger = True
-                    continue
-                except openai.error.ServiceUnavailableError:
-                    print(f"***Error generating image for {role}.")
-                    print(
-                        "   *** OpenAI API service unavailable. Waiting 10 seconds and trying again. ***"
-                    )
-                    time.sleep(10)  # Wait 10 seconds and try again
-                    continue
-                else:
-                    print(f"***Error generating image for {role}.")
-                    break
-            print("done with image")
+            new_role.generate_image()
 
             progress_points = progress_points + 1
             self.generation_progress_percent = round(base_progress_percent + ((100-base_progress_percent)*(progress_points/total_progress_points)))
@@ -242,18 +177,10 @@ class Team(models.Model):
         end_time = time.time()
         print(end_time)
         total_time_mins = (end_time - start_time)/60
-        print(f"Generating {self} took {total_time_mins} minutes.")
+        print(f"Generating {self} took {total_time_mins} minutes. Now downloading images from openai...")
 
-        for idx, role in enumerate(self.role_set.all()):
-            file_name = str(uuid.uuid4()) + ".png"
-            file_path = os.path.join(settings.DOWNLOAD_IMAGES_ROOT, file_name)
-            img_data = requests.get(role.image_url).content
-            print(f"Downloading {role.image_url} and writing to {file_path}")
-            with open(file_path, 'wb') as handler:
-                handler.write(img_data)
-                role.image_url = f'{settings.DOWNLOAD_IMAGES_URL}/{file_name}'
-                role.save()
-                print(f"Saved image. It's at {role.image_url} now")
+        for role in self.role_set.all():
+            role.persist_image()
         
         end_time = time.time()
         total_time_mins = (end_time - start_time)/60
@@ -310,6 +237,74 @@ class Role(models.Model):
     def __str__(self):
         return f"{self.name} ({self.guid}) on {self.team.objective} team"
 
+    def generate_image(self):
+        max_retries = 5
+        print(f"Generating image for {self}")
+        
+        generate_stranger = False
+        mascfem = random.choice(["masculine ", "feminine ", ""])
+        city = "Atlanta"
+        prompt = f"3D rendered cartoon avatar of {mascfem}{self.name} from {city}, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, NOT ugly, NOT disfigured, NOT bad"
+
+        for retries in range(0, max_retries):
+            try:
+                if generate_stranger:
+                    prompt = f"3D rendered cartoon avatar of {mascfem}person, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
+                response = openai.Image.create(
+                    prompt=prompt,
+                    n=1,
+                    size="512x512"
+                )
+                image_url = response['data'][0]['url']
+                print(image_url)
+                self.image_url=image_url
+                self.save()
+                break
+            except openai.error.RateLimitError:
+                print(f"***Error generating image for {self}.")
+                print("   *** The OpenAI API rate limit has been exceeded. Waiting 10 seconds and trying again. ***")
+                time.sleep(10)  # Wait 10 seconds and try again
+                continue
+            except openai.error.Timeout:
+                print(f"***Error generating image for {self}.")
+                print("   *** OpenAI API timeout occured. Waiting 10 seconds and trying again. ***")
+                time.sleep(10)  # Wait 10 seconds and try again
+                continue
+            except openai.error.APIError:
+                print(f"***Error generating image for {self}.")
+                print( "   *** OpenAI API error occured. Waiting 10 seconds and trying again. ***")
+                time.sleep(10)  # Wait 10 seconds and try again
+                continue
+            except openai.error.APIConnectionError:
+                print(f"***Error generating image for {self}.")
+                print( "   *** OpenAI API connection error occured. Check your network settings, proxy configuration, SSL certificates, or firewall rules. Waiting 10 seconds and trying again. ***")
+                time.sleep(10)  # Wait 10 seconds and try again
+                continue
+            except openai.error.InvalidRequestError:
+                print(f"***Error generating image for {self}.")
+                print( "   *** OpenAI API invalid request. Check the documentation for the specific API method you are calling and make sure you are sending valid and complete parameters. Generating stranger image instead. ***")
+                generate_stranger = True
+                continue
+            except openai.error.ServiceUnavailableError:
+                print(f"***Error generating image for {self}.")
+                print( "   *** OpenAI API service unavailable. Waiting 10 seconds and trying again. ***")
+                time.sleep(10)  # Wait 10 seconds and try again
+                continue
+            else:
+                print(f"***FATAL Error generating image for {self}.")
+                break
+        print("Generated image on openai side for {self}.")
+
+    def persist_image(self):
+        file_name = str(uuid.uuid4()) + ".png"
+        file_path = os.path.join(settings.DOWNLOAD_IMAGES_ROOT, file_name)
+        print(f"Downloading {self.image_url} and writing to {file_path}")
+        img_data = requests.get(self.image_url).content
+        with open(file_path, 'wb') as handler:
+            handler.write(img_data)
+            self.image_url = f'{settings.DOWNLOAD_IMAGES_URL}/{file_name}'
+            self.save()
+            print(f"Saved image. It's at {self.image_url} now")
 
 class Chat(models.Model):
     guid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
