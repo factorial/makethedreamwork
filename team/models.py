@@ -3,6 +3,7 @@ from django.db import models
 from django.utils import timezone
 
 from team.openai import openai_call, openai_image
+from team.utils import approximate_word_count
 from team import prompts
 import requests
 import os
@@ -182,6 +183,29 @@ class Team(models.Model):
         print(f"After downloading {self.role_set.count()} images, {self} took {total_time_mins} minutes & {self.tokens_used} tokens (${cost}).")
 
 
+    def generate_chat(self, human_role_guids: list = None):
+        new_chat = Chat.objects.create(team_id=self.guid)
+        new_chat.save()
+        guid = new_chat.guid
+        if not human_role_guids:
+            human_role_guids = []
+
+        for role in self.role_set.all():
+            if str(role.guid) in human_role_guids:
+                print(f"Not summarizing for human role {role.name}")
+                new_chat.human_roles.add(role)
+                continue
+            else:
+                print(f"{role.guid} not in human guids {human_role_guids}")
+
+            print(f"Making AI system prompt for role {role.name}")
+            prompt = prompts.AI_ROLE_PROMPT.format(role=role.name, objective=self.objective, responsibilities=f"{role.tasks_list_js_array}{role.tasks_list_text}")
+            role.ai_prompt = prompt
+            role.save()
+
+        print(f"Made AI agents for {self}. Returning chat object.")
+        return new_chat
+
 
     def get_template_context(self):
         retval = {
@@ -267,5 +291,39 @@ class Chat(models.Model):
 
     def __str__(self):
         return f"Chat ({self.guid}) for {self.team.objective} team"
+
+    def summarize_and_save(self):
+        end_of_session_message = "## END OF MEETING"
+
+        chatlog = self.log
+        print(f"Summarizing Chat {self.guid} so far")
+
+        summary_system_prompt = prompts.SUMMARIZER
+        summary_messages = [{"role": "system", "content": summary_system_prompt }]
+        # summary must not fail. a token is about 3/4 of a word.
+        token_count = approximate_word_count(f"{summary_system_prompt}{chatlog}") * (4/3)
+        max_token_count = 1000
+
+        if token_count > max_token_count:
+            scale_factor = max_token_count/token_count
+            substrlen = int(len(chatlog)*scale_factor)
+            chatlog = chatlog[-substrlen:]
+
+        result, tokens_used = openai_call(chatlog,role="user", max_tokens=max_token_count, previous_messages=summary_messages)
+        print(result)
+        print(f"TOKENS USED {tokens_used}")
+        summary = result
+        # save the log so the chat can be rendered as old log + summary + current log
+        self.log_historical = f"{self.log_historical or ''}\n{self.log}\n"
+        # but start over with chat.log = just the summary as chat.log
+        self.log = f"""{end_of_session_message}
+        {summary}
+
+        # CHAT LOG - TEAM OBJECTIVE = {self.team.objective}
+
+        Moderator: Welcome back, team. Continue work on your objective. Good luck.
+        """
+        self.save()
+
 
 

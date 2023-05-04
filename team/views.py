@@ -156,26 +156,8 @@ def create_team_chat_by_guid(request, team_guid):
     return redirect to the new chat
     """
     team = Team.objects.get(guid=team_guid)
-    new_chat = Chat.objects.create(team_id=team_guid)
-    new_chat.save()
-    guid = new_chat.guid
-    human_role_guids = request.GET.get('me', '').split(' ')
-
-    for role in new_chat.team.role_set.all():
-        if str(role.guid) in human_role_guids:
-            print(f"Not summarizing for human role {role.name}")
-            new_chat.human_roles.add(role)
-            continue
-        else:
-            print(f"{role.guid} not in human guids {human_role_guids}")
-
-        print(f"Making AI system prompt for role {role.name}")
-        prompt = prompts.AI_ROLE_PROMPT.format(role=role.name, objective=team.objective, responsibilities=f"{role.tasks_list_js_array}{role.tasks_list_text}")
-        role.ai_prompt = prompt
-        role.save()
-
-    print(f"Made AI agents for {new_chat.team}.")
-    return HttpResponseRedirect(reverse('chat-by-guid', args=(guid,)))
+    new_chat = team.generate_chat(human_role_guids=request.GET.get('me', '').split(' '))
+    return HttpResponseRedirect(reverse('chat-by-guid', args=(new_chat.guid,)))
 
 def chat_by_guid(request, guid=None):
     human_input = request.POST.get('human_input', None)
@@ -239,7 +221,6 @@ def chat_by_guid(request, guid=None):
                 template_context["human_role_name"] = role.name
                 break
 
-            # Summarize chat so far.
             system_prompt = f"""{role.ai_prompt}"""
             user_prompt = f"""{chat.log or ""}\n\n"""
             previous_messages = [
@@ -253,38 +234,8 @@ def chat_by_guid(request, guid=None):
             print(result)
             print(f"TOKEN USED {tokens_used}")
             if result is False:
-                # Chat's too long... 
-                # summarize it.
-                chatlog = chat.log
-                print(f"Summarizing Chat {chat.guid} so far")
-
-                summary_system_prompt = prompts.SUMMARIZER
-                summary_messages = [{"role": "system", "content": summary_system_prompt }]
-                # summary must not fail. a token is about 3/4 of a word.
-                token_count = approximate_word_count(f"{summary_system_prompt}{chatlog}") * (4/3)
-                max_token_count = 1000
-
-                if token_count > max_token_count:
-                    scale_factor = max_token_count/token_count
-                    substrlen = int(len(chatlog)*scale_factor)
-                    chatlog = chatlog[-substrlen:]
-
-                result, tokens_used = openai_call(chatlog,role="user", max_tokens=max_token_count, previous_messages=summary_messages)
-                print(result)
-                print(f"TOKENS USED {tokens_used}")
-                summary = result
-                end_of_session_message = "## END OF MEETING"
-                # save the log so the chat can be rendered as old log + summary + current log
-                chat.log_historical = f"{chat.log_historical or ''}\n{chat.log}\n"
-                # but start over with chat.log = just the summary as chat.log
-                chat.log = f"""{end_of_session_message}
-                {summary}
-
-                # CHAT LOG - TEAM OBJECTIVE = {chat.team.objective}
-    
-                Moderator: Welcome back, team. Continue work on your objective. Good luck.
-                """
-                chat.save()
+                # Summarize chat so far.
+                chat.summarize_and_save()
 
                 # and then, oddly, restart the role ring. this is so shameful.
                 restart_role_ring_now = True
