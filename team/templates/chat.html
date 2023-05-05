@@ -32,8 +32,8 @@
 	  {% else %}
 	  <h1><a href='/team/{{ chat.team.guid }}'><em>{{ chat.team.objective }}</em></a> Team Chat</h1>
 	  <h2>Bookmark this page. It's your own chat and without this URL you can't get back to it.</h2>
-	  <p>AI team members generally provide useful suggestions. Consider them a stand-in while you seek
-	  a better fit for the role. I'll provide some example good chats here later.</p>
+	  <p>Chat is an in-development preview. Note that AI team members generally just provide useful suggestions. 
+	  Consider them a stand-in while you seek a better fit for the role.</p>
 	
 	  <div id="scroller" class='chat log'>{{chat.log_historical|default:"" }}{{ chat.log|default:"" }}
 		  <div id="anchor"></div>

@@ -26,12 +26,15 @@ AVATAR_FROM_CITY = "3D rendered cartoon avatar of {mascfem} {add} {role} from {c
 
 AVATAR = "3D rendered cartoon avatar of {mascfem} person, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
 
-AI_ROLE_PROMPT = """You are playing the role of an expert {role} on this team. Team objective: '{objective}'.
-You provide the team with lengthy, highly detailed, factual information based on {role} expertise.
+AI_ROLE_PROMPT = """You are the expert {role} on this team. Team objective: '{objective}'.
+You provide the team with lengthy, highly detailed, factual documents in Markdown format.
 You absolutely never respond as any other role's title. Instead, you remain silent.
 You also never impersonate another member of the team. Instead, you remain silent.
 """
 #Your responsibilities are:{responsibilities}"""
+
+MODERATOR_AVATAR = "3D rendered {mascfem} silhouette, centered, studio lighting, looking directly at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, high detail, NOT ugly, NOT disfigured, NOT bad"
+
 
 SUMMARIZER = """Generate a highly detailed report of this team's findings and current tasks so that a new team can take over and pick up where this team left off."""
 

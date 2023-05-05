@@ -3,7 +3,7 @@ from django.db import models
 from django.utils import timezone
 
 from team.openai import openai_call, openai_image
-from team.utils import approximate_word_count
+from team.utils import approximate_word_count, persist_image
 from team import prompts
 import requests
 import os
@@ -23,6 +23,7 @@ class Team(models.Model):
     generation_progress_percent = models.PositiveSmallIntegerField(default=0)
     private = models.BooleanField(default=False, null=False)
     tokens_used = models.PositiveIntegerField(default=0)
+    moderator_image_url = models.URLField(max_length=1023, null=True, blank=True)
 
     def __str__(self):
         return f"{self.objective} ({self.guid}) private={self.private} tokens_used={self.tokens_used}"
@@ -106,6 +107,11 @@ class Team(models.Model):
         steps_per_role = 3
         total_progress_points = len(roles)*steps_per_role
         base_progress_percent = 20
+        
+        # generate moderator image (not a real role)
+        self.moderator_image_url = persist_image(openai_image(prompt=prompts.MODERATOR_AVATAR))
+        self.save()
+
         for role in roles:
             print(f"Generating role {role} for {self}...")
             loop_context = context
@@ -175,6 +181,7 @@ class Team(models.Model):
         
         end_time = time.time()
         total_time_mins = (end_time - start_time)/60
+        
 
         # calculate_cost()
         cost_per_token = (0.002/1000)
@@ -211,6 +218,7 @@ class Team(models.Model):
         retval = {
                 "generation_progress_percent": self.generation_progress_percent,
                 "team": {
+                    "team": self,
                     "objective": self.objective,
                     "description": self.description,
                     "roles": {
@@ -271,15 +279,9 @@ class Role(models.Model):
             print(f"That's a major error generating image for {self}")
 
     def persist_image(self):
-        file_name = str(uuid.uuid4()) + ".png"
-        file_path = os.path.join(settings.DOWNLOAD_IMAGES_ROOT, file_name)
-        print(f"Downloading {self.image_url} and writing to {file_path}")
-        img_data = requests.get(self.image_url).content
-        with open(file_path, 'wb') as handler:
-            handler.write(img_data)
-            self.image_url = f'{settings.DOWNLOAD_IMAGES_URL}/{file_name}'
-            self.save()
-            print(f"Saved image. It's at {self.image_url} now")
+        self.image_url = persist_image(self.image_url)
+        self.save();
+        print(f"Saved image. It's at {self.image_url} now")
 
 class Chat(models.Model):
     guid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -302,14 +304,14 @@ class Chat(models.Model):
         summary_messages = [{"role": "system", "content": summary_system_prompt }]
         # summary must not fail. a token is about 3/4 of a word.
         token_count = approximate_word_count(f"{summary_system_prompt}{chatlog}") * (4/3)
-        max_token_count = 2000
+        max_token_count = 3000
 
         if token_count > max_token_count:
             scale_factor = max_token_count/token_count
             substrlen = int(len(chatlog)*scale_factor)
             chatlog = chatlog[-substrlen:]
 
-        result, tokens_used = openai_call(chatlog,role="user", max_tokens=max_token_count, previous_messages=summary_messages)
+        result, tokens_used = openai_call(chatlog,role="user", max_tokens=1000, previous_messages=summary_messages)
         print(result)
         print(f"TOKENS USED {tokens_used}")
         summary = result

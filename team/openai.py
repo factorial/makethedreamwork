@@ -89,7 +89,7 @@ def openai_image(prompt):
                 size="512x512"
             )
             image_url = response['data'][0]['url']
-            print(image_url)
+            print("OpenAI made"+ image_url)
             return image_url
 
         except openai.error.RateLimitError:

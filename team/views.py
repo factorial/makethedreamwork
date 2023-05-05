@@ -100,6 +100,7 @@ def team_by_guid(request, guid=None, format=None):
         print("no team by that guid")
         return TemplateResponse(request, "team.html", {})
 
+
     template_context = team.get_template_context()
     if format and format.lower()=='json':
         print("serving up json")
@@ -127,6 +128,7 @@ def team_by_guid(request, guid=None, format=None):
 
         return TemplateResponse(request, "progress.html", template_context)
 
+    template_context["moderator_prompt"] = prompts.TASK_FINDER
     return TemplateResponse(request, "team.html", template_context)
 
 
@@ -136,6 +138,13 @@ def test_generate_profile_image(request):
     add = request.GET.get('add','')
     city = request.GET.get('city', 'New York City')
     prompt = prompts.AVATAR_FROM_CITY.format(mascfem=mascfem, role=role, city=city, add=add)
+    print(f"trying {prompt}")
+    image_url = openai_image(prompt)
+    print(image_url)
+    return HttpResponse(f'<img src="{image_url}">')
+
+def test_generate_any_image(request):
+    prompt = request.GET.get("prompt", "")
     print(f"trying {prompt}")
     image_url = openai_image(prompt)
     print(image_url)
@@ -163,12 +172,18 @@ def create_team_chat_by_guid(request, team_guid):
     """
     team = Team.objects.get(guid=team_guid)
     new_chat = team.generate_chat(human_role_guids=request.GET.get('me', '').split(' '))
-    return HttpResponseRedirect(reverse('chat-by-guid', args=(new_chat.guid,)))
+    mp=request.GET.get('moderator_prompt', None)
+    if mp:
+        qs = f"?moderator_prompt={mp}"
+    else:
+        qs = ""
+    return HttpResponseRedirect(reverse('chat-by-guid', args=(new_chat.guid,))+qs)
 
 def chat_by_guid(request, guid=None):
     human_input = request.POST.get('human_input', None)
     human_role_name = request.POST.get('human_role_name', None)
     full_meeting = request.GET.get('full_meeting', None)
+    moderator_prompt = request.GET.get('moderator_prompt', prompts.TASK_FINDER)
 
     template_context = {}
     try:
@@ -222,11 +237,11 @@ def chat_by_guid(request, guid=None):
                 except:
                     next_role_name = role_list[0].name
 
-                system_prompt = prompts.TASK_FINDER.format(role=next_role_name)
+                system_prompt = moderator_prompt.format(role=next_role_name)
                 previous_messages = [ {"role": "system", "content": system_prompt} ]
                 openai_role = "user"
                 prompt = chat.log
-
+                print(f"Moderating with {system_prompt}")
                 result, tokens_used = openai_call(prompt,role=openai_role, max_tokens=500, previous_messages=previous_messages)
                 print(result)
                 if result:
@@ -246,9 +261,6 @@ def chat_by_guid(request, guid=None):
                 waiting_for_human_input=True
                 template_context["human_role_name"] = role.name
                 break
-
-            # between each role talk to moderator/task finder
-            # 1. You are a task finder. Find one task in this chat log and demand that the person responsible deliver the result immediately.
 
             # TODO HERE: remodel chat as list of messages so we can make previous_messages mark "assistant"
             # all the previous messages from this role.
