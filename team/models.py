@@ -298,7 +298,7 @@ class Chat(models.Model):
         chatlog = self.log
         print(f"Summarizing Chat {self.guid} so far")
 
-        summary_system_prompt = prompts.SUMMARIZER.format(ending_message = ending_of_session_message)
+        summary_system_prompt = prompts.SUMMARIZER.format(ending_message = end_of_session_message)
         summary_messages = [{"role": "system", "content": summary_system_prompt }]
         # summary must not fail. a token is about 3/4 of a word.
         token_count = approximate_word_count(f"{summary_system_prompt}{chatlog}") * (4/3)
