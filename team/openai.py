@@ -1,6 +1,7 @@
 from django.conf import settings
 import openai
 import time
+import re
 
 OPENAI_API_KEY=settings.OPENAI_API_KEY
 
@@ -31,7 +32,8 @@ def openai_call(
                     n=1,
                     stop=None,
                 )
-                return (response.choices[0].message.content.strip(), response.usage.total_tokens)
+                return (re.sub('as an ai language model, ', '', response.choices[0].message.content.strip(), flags=re.IGNORECASE), 
+                        response.usage.total_tokens)
             except openai.error.RateLimitError:
                 print(
                     "   *** The OpenAI API rate limit has been exceeded. Waiting 10 seconds and trying again. ***"
