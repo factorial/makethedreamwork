@@ -33,16 +33,22 @@ Concepts
   keeping morale high, kind words, affirmation... seemingly unproductive
   conversation among computers, but aligned with the human language
   training data
+- AI agent and the context they create lives only as long as the max token length, then another
+  generation must pick up where the previous left off, using only a lossy summary
+  as its guide. Accuracy in summary is the hard thing in LLMs.
+
 """
 
 """
 MAYBE TODO
 - UI that allows user to reply directly to comments from AI, effectively repeating 
   user input directly before it's the AI target user's turn to speak.
-- Let users sign up and volunteer for roles
+- Let users sign up and volunteer for roles to make human teams with other users,
+  maybe drop them in a discord.
 - Gather facts & tasks after every round of chat and keep a running list
   present it to the user as well as maybe to each agent when prompting 
   for that agent's response.
+- UI that lets user pin comments to be remembered especially in summary
 - UI that lets user give one agent focus, letting them request 
   longer completions and prompting differently to get detailed response.
 - UI for standard commands like 
@@ -201,28 +207,59 @@ def chat_by_guid(request, guid=None):
     print(f"{ waiting_for_human_input } - human turn?")
     while not waiting_for_human_input:
         print(f"Rotating through all roles in team {chat.team}")
+        role_list = []
         for role in chat.team.role_set.all():
+            role_list.append(role)
+            role_list.append(None)
+
+        for idx, role in enumerate(role_list):
+            # if role is None, do the interstitial thing that happens after every role
+            # eventually let humans be the interstial from previous requests they made for a specific role
+            print(f"Chatting with role: {role}")
+            if role is None:
+                try:
+                    next_role_name = role_list[idx+1].name
+                except:
+                    next_role_name = role_list[0].name
+
+                system_prompt = prompts.TASK_FINDER.format(role=next_role_name)
+                previous_messages = [ {"role": "system", "content": system_prompt} ]
+                openai_role = "user"
+                prompt = chat.log
+
+                result, tokens_used = openai_call(prompt,role=openai_role, max_tokens=500, previous_messages=previous_messages)
+                print(result)
+                if result:
+                    chat.log += f"\nModerator: {result}\n\n"
+                    chat.save()
+                continue
+                    
+
             # move through the order until passing the last speaking human, as long as that human was in the list
             if last_human_role_name in possible_human_role_names:
                 if role.name == last_human_role_name:
                     last_human_role_name = None
                 continue
             
-            print(f"Chatting with role: {role}")
             if role.name in possible_human_role_names:
                 print(f"Found a human: {role}")
                 waiting_for_human_input=True
                 template_context["human_role_name"] = role.name
                 break
 
+            # between each role talk to moderator/task finder
+            # 1. You are a task finder. Find one task in this chat log and demand that the person responsible deliver the result immediately.
+
+            # TODO HERE: remodel chat as list of messages so we can make previous_messages mark "assistant"
+            # all the previous messages from this role.
+            # Then, refactor each role into two system prompts: info sharing, then task suggestion. each task is
+            # either info gathering or other (thus, necessary for a person to do and eternally undone unless human says so)
+            # then maybe make moderator a permanent fixture of this structure who summarizes each group of messages into tasks & facts?
             system_prompt = f"""{role.ai_prompt}"""
             user_prompt = f"""{chat.log or ""}\n\n"""
-            previous_messages = [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt }
-                    ]
-            openai_role = "assistant"
-            prompt = ""
+            previous_messages = [ {"role": "system", "content": system_prompt} ]
+            openai_role = "user"
+            prompt = user_prompt
 
             result, tokens_used = openai_call(prompt,role=openai_role, max_tokens=2000, previous_messages=previous_messages)
             print(result)
