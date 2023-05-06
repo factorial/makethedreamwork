@@ -1,4 +1,4 @@
-static/
+static
 secrets.py
 db.sqlite3
 *.sw?

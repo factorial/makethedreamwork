@@ -32,15 +32,15 @@
 	  {% else %}
 	  <h1><a href='/team/{{ chat.team.guid }}'><em>{{ chat.team.objective }}</em></a> Team Chat</h1>
 	  <h2>Bookmark this page. It's your own chat and without this URL you can't get back to it.</h2>
-	  <p>Chat is an in-development preview. Note that AI team members generally just provide useful suggestions. 
+	  <p class='note about alpha'>Chat is an in-development preview, subject to change. AI team members generally just provide useful suggestions. 
 	  Consider them a stand-in while you seek a better fit for the role.</p>
 	
 	  <div id="scroller" class='chat log'>{{chat.log_historical|default:"" }}{{ chat.log|default:"" }}
 		  <div id="anchor"></div>
 	  </div>
 
-	  <form method='post'>
-		  <label><span>{{human_role_name}}</span></label>
+	  <form method='post' class='human chat input'>
+		  <label><span>{{human_role_name}}:</span></label>
 		  <input id='human_input' type='text' name='human_input' placeholder='(You can stay silent.)'>
 		  <input type='hidden' name='human_role_name' value='{{human_role_name}}'>
 		  {% csrf_token %}

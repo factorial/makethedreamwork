@@ -196,23 +196,25 @@ def chat_by_guid(request, guid=None):
 
     brand_new_chat=False
     if not chat.log and not chat.log_historical:
-        initial_chat_log = f"""
-        # CHAT LOG - TEAM OBJECTIVE = {chat.team.objective}
-        
-        Moderator: Team, begin work on your objective. Good luck.
+        initial_chat_log = f"""# CHAT LOG - TEAM OBJECTIVE = {chat.team.objective}
 
-        """
+Moderator: Team, begin work on your objective. Good luck.
+"""
         chat.log = initial_chat_log
         chat.save()
         brand_new_chat=True
     
     last_human_role_name = human_role_name
     possible_human_role_names = [role.name for role in chat.human_roles.all()]
+
+    default_human_role_name = "Moderator"
+    if default_human_role_name.lower() in [name.lower() for name in chat.team.role_set.all().values_list('name', flat=True)]:
+        default_human_role_name = "M.C."
     
     waiting_for_human_input = False
     if not full_meeting and not brand_new_chat and not last_human_role_name:
         waiting_for_human_input = True
-        template_context["human_role_name"] = "Moderator"
+        template_context["human_role_name"] = default_human_role_name
     if human_input and human_role_name:
         chat.log += f"\n\n{human_role_name}: {human_input}\n\n"
         chat.save()
@@ -245,7 +247,7 @@ def chat_by_guid(request, guid=None):
                 result, tokens_used = openai_call(prompt,role=openai_role, max_tokens=500, previous_messages=previous_messages)
                 print(result)
                 if result:
-                    chat.log += f"\nModerator: {result}\n\n"
+                    chat.log += f"\n{default_human_role_name}: {result}\n\n"
                     chat.save()
                 continue
                     

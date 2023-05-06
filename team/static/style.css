@@ -1,0 +1,198 @@
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, embed,
+figure, figcaption, footer, header, hgroup,
+menu, nav, output, ruby, section, summary,
+time, mark, audio, video { margin: 0; padding: 0; border: 0; font-size: 100%; font: inherit; vertical-align: baseline; }
+article, aside, details, figcaption, figure,
+footer, header, hgroup, menu, nav, section { display: block; }
+body { line-height: 1; }
+ol, ul { list-style: none; }
+blockquote, q { quotes: none; }
+blockquote:before, blockquote:after,
+q:before, q:after { content: ''; content: none; }
+table { border-collapse: collapse; border-spacing: 0; }
+
+em {
+	font-style:italic;
+}
+ul.team {
+	margin: auto;
+	text-align: center;
+}
+ul.team > li {
+	display: inline-block;
+	width: 18em;
+	margin: 1em;
+	vertical-align: top;
+}
+.avatar {
+	border-radius: 50%;
+	width: 100%;
+	border: solid 3px #ccc;
+}
+h3 {
+	font-size:125%;
+	text-align:center;
+}
+.handbook h3 {
+	padding:1em;
+}
+.handbook textarea {
+	width:100%;
+	height: 100%;
+	box-sizing: border-box;
+}
+
+
+.bar {
+	height: 2em;
+	line-height: 2em;
+	border-radius: 1em;
+}
+.progress {
+	background-color: #f00;
+}
+button {
+	margin-bottom: 0.5em;
+}
+.handbook {
+	display:none;
+	grid-template-rows: auto 1fr;
+	position: fixed;
+	width: 70%;
+	top: 5%;
+	left: 15%;
+	background: white;
+	border: solid 2px #ccc;
+	text-align: left;
+	height: 90%;
+	box-shadow: 0px 0px 200px 10px #ccc;
+}
+
+a, button a {
+	color: #000;
+}
+
+h1 {
+  font-size: 400%;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 0.5em;
+  text-transform: capitalize;
+}
+strong {
+	font-weight: bold;
+}
+	  main {
+		  padding:1em;
+	  }
+
+	  h2 { 
+		  font-size:200%;
+		  font-weight: bold;
+		  text-align: center;
+		  line-height:120%;
+
+	  }
+	  .team > li > h2 {
+		  min-height: 2.1em;
+		  text-transform: capitalize;
+	  }
+
+
+
+	  .tasks {
+		  text-align: left;
+		  line-height: 1.1em;
+		  list-style-type: disc;
+	  }
+form.new.team {
+	text-align:center;
+	margin: 1em;
+}
+.team li form {
+	margin:0;
+}
+.moderator.prompt {
+	width:100%;
+	height: 10em;
+}
+form.new.team > input {
+	font-size: 200%;
+}
+input, button {
+	border-radius: 10px;
+	border: solid 1px #ccc;
+	padding: 0.25em;
+	max-width:90%;
+	box-sizing: border-box;
+	margin-bottom: 0.25em;
+}
+
+body > p { text-align:center; }
+
+#objective {
+	width:100%;
+	max-width: 700px;
+}
+
+section {
+	margin: 1em 0 1em 0;
+}
+ol.recent {
+	text-align:center;
+	font-size: 200%;
+}
+ol.recent li {
+    display: inline;
+}
+ol.recent li > a {
+	text-decoration: none;
+}
+ol.recent li > a > button {
+	font-size: 100%;
+	text-transform: capitalize;
+}
+ol.recent button .avatar {
+	width: 15%;
+	max-width: 50px;
+	display: inline-block;
+	border: solid 1px #ccc;
+	border-radius: 50%;
+}
+
+form label {
+	white-space:nowrap;
+}
+
+
+ul.avatars {
+	text-align:center;
+}
+ul.avatars li {
+	width:100px;
+	display:inline-block;
+}
+ul.avatars avatar.heading img {
+	border:2px;
+}
+
+form.human.input {
+	display: grid;
+	grid-template-columns: auto 1fr auto;
+}
+form.human.input label {   grid-column: 1 / span 1;  line-height:1.5em;}
+form.human.input input {   grid-column: 2 / span 1; max-width: 99%; }
+form.human.input input[type='submit'] {   grid-column: 3 / span 1; }
+
+body {
+padding-bottom: 100px;
+}
