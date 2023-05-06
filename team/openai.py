@@ -32,7 +32,9 @@ def openai_call(
                     n=1,
                     stop=None,
                 )
-                return (re.sub('as an ai language model, ', '', response.choices[0].message.content.strip(), flags=re.IGNORECASE), 
+                return (re.sub('as an ai language model, |as the ai language model, ', '', 
+                               response.choices[0].message.content.strip(), 
+                               flags=re.IGNORECASE), 
                         response.usage.total_tokens)
             except openai.error.RateLimitError:
                 print(
