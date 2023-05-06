@@ -8,6 +8,52 @@ OPENAI_API_KEY=settings.OPENAI_API_KEY
 # Configure OpenAI
 openai.api_key = OPENAI_API_KEY
 
+
+#https://github.com/openai/openai-cookbook/blob/main/examples/How_to_stream_completions.ipynb
+def openai_stream(
+      prompt: str,
+      temperature: float = 0.5,
+      max_tokens: int = 100,
+      role: str = "system",
+      previous_messages: list = None
+):
+
+    model = "gpt-3.5-turbo"
+    try:
+        if not previous_messages:
+            messages = [{"role": role, "content": prompt}]
+        else:
+            messages = previous_messages + [{"role": role, "content": prompt}]
+
+        response = openai.ChatCompletion.create(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            stream=True,
+            stop=None,
+        )
+
+        # event variables
+        collected_chunks = []
+        collected_messages = ""
+
+        # capture and print event stream
+        print(f"stream response...")
+        for chunk in response:
+            collected_chunks.append(chunk)  # save the event response
+            chunk_message = chunk['choices'][0]['delta']  # extract the message
+            if "content" in chunk_message:
+                message_text = chunk_message['content']
+                collected_messages += message_text
+                print(f"{message_text}", end="")
+        print(f"\n")
+        return collected_messages
+    except Exception as e:
+        # Print error if chatbot fails to generate response
+        print(f"{Fore.RED}{Style.BRIGHT}Error generating chat response: {e}{Style.RESET_ALL}")
+
+
 def openai_call(
       prompt: str,
       temperature: float = 0.5,

@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.views.decorators.http import require_POST, require_GET
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, StreamingHttpResponse
 from django.template.response import TemplateResponse
 from django.conf import settings
 from django.urls import reverse
@@ -298,4 +298,27 @@ Moderator: Team, begin work on your objective. Good luck.
 
     template_context["chat"] = chat
     return TemplateResponse(request, "chat.html", template_context)
+
+def stream_view(request):
+    return TemplateResponse(request, "chat_ws.html", {})
+
+def stream(request):
+    human_input = request.POST.get('human_input', None)
+    human_role_name = request.POST.get('human_role_name', None)
+    full_meeting = request.GET.get('full_meeting', None)
+    moderator_prompt = request.GET.get('moderator_prompt', prompts.TASK_FINDER)
+
+    template_context = {}
+    def send_stream():
+        print("YIELDING FIRST")
+        yield "data: "+ ("111 " * 400) + "\n\n"
+        print("YIELDING apos")
+        yield "data: "+ ("''' " * 400) + "\n\n"
+        print("waiting 10")
+        time.sleep(10)
+        print("YIELDING second")
+        yield "data: muchmore  data.\n\n"
+        yield "data: "+ ("more data lots of data " * 400) + "\n\n"
+
+    return StreamingHttpResponse(send_stream(), content_type='text/event-stream; charset=utf-8',headers={'Cache-Control': 'no-cache', 'Transfer-Encoding': 'chunked'})
 

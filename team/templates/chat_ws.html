@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>{{ chat.team.objective|default:"No" }} Team Chat</title>
+    <link rel="stylesheet" href="/static/style.css">
+
+<style>
+.scroller * {
+  overflow-anchor: none;
+}
+
+.scroller .anchor {
+  overflow-anchor: auto;
+  height: 1px;
+}
+
+#scroller {
+	white-space:break-spaces;
+	font-family:monospace;
+}
+
+
+</style>
+  </head>
+  <body>
+	  <main id='main'>
+		  <div class="scroller" class='chat log' id='output'>
+			  <div class="anchor"></div>
+		  </div>
+
+		  <form method='post' class='human chat input'>
+			  <label><span>{{human_role_name}}:</span></label>
+			  <input id='human_input' type='text' name='human_input' placeholder='(You can stay silent.)'>
+			  <input type='hidden' name='human_role_name' value='{{human_role_name}}'>
+			  {% csrf_token %}
+			  <input type='submit'>
+		  </form>
+	  </main>
+  </body>
+  <script>
+	  const output = document.getElementById('output');
+	  const eventSource = new EventSource('/stream/stream');
+
+	  // listen for the 'message' event, which is triggered each time the server sends a new message
+	  eventSource.addEventListener('message', (event) => {
+			    // print the message to the browser console
+			    console.log('Received message:', event.data);
+
+			    // display the message in the HTML page
+			    const message = document.createElement('div');
+			    message.textContent = event.data;
+			    output.appendChild(message);
+		    });
+	  eventSource.onerror = function() { eventSource.close(); }
+  </script>
+</html>
