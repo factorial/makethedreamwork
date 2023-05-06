@@ -10,15 +10,21 @@
   </head>
   <body>
 	  <h1>Teamwork Makes the Dream Work</h1>
-	  <h2>Accomplish your big goal by forming a team.</h2>
+	  <h2>It's time to accomplish your big goal by forming a team.</h2>
 	  <form class='new team' action='/team/' method='post'>
 		  {% csrf_token %}
 		  <input type='text' name='objective' placeholder='Run for office' required id='objective'>
 		  <input type='submit' value='Make a team'>
 		  <!--<label for='private'><span>Private</span> <input type='checkbox' name='private' checked value='private' id='private'></label>-->
 	  </form>
-	  <p>This site uses AI to put you on the <strong>first step toward doing something bigger than yourself</strong>.</p>
-	  <p>Enter an objective above. Think <strong>BIG</strong> (and please be patient, it's a multi-step process).</p>
+	  <section class='intro'>
+		  <p>This site uses AI to plan your first steps toward any objective.</p>
+		  <ul>
+			  <li>A team structure with a clear division of roles &amp; responsibilities and handbooks for each role.</li>
+			  <li>Chat with an AI version of your team.
+		  </ul>
+		  <p>Enter an objective. Think <strong>BIG</strong> and please be patient, it's a multi-step process.</p>
+	  </section>
 
 	  <section>
 	  <h2>What goals are other users forming teams for?</h2>

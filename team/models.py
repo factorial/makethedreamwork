@@ -146,17 +146,26 @@ class Team(models.Model):
             new_role.guide_text =result
             if role in role_tasks:
                 print(f"Yes, {role} is in {role_tasks}")
-                if isinstance(role_tasks[role], list):
-                    print("Saving tasks as a list from list")
-                    new_role.tasks_list_js_array=json.dumps(role_tasks[role])
-                elif isinstance(role_tasks[role], dict):
-                    print("Saving tasks as a list from dict")
-                    new_role.tasks_list_js_array=json.dumps([role_tasks[role][key] for key in role_tasks[role]])
-                else:
-                    print("Saving tasks as a string")
-                    new_role.tasks_list_text=json.dumps(role_tasks[role])
+                role_tasks_to_save=role_tasks[role]
+            elif role in role_tasks[role_tasks.keys(0)]:
+                print(f"Yes, {role} is in team subset of {role_tasks}")
+                role_tasks_to_save=role_tasks[role_tasks.keys(0)][role]
             else:
                 print(f"No, {role} is not in {role_tasks}, so this role gets no tasks.")
+                role_tasks_to_save=None
+
+            if role_tasks_to_save:
+                if isinstance(role_tasks_to_save, list):
+                    print("Saving tasks as a list from list")
+                    new_role.tasks_list_js_array=json.dumps(role_tasks_to_save)
+                elif isinstance(role_tasks[role], dict):
+                    print("Saving tasks as a list from dict")
+                    new_role.tasks_list_js_array=json.dumps([role_tasks_to_save[key] for key in role_tasks[role]])
+                else:
+                    print("Saving tasks as a string")
+                    new_role.tasks_list_text=json.dumps(role_tasks_to_save)
+            else:
+                print(f"So yeah. Saving.")
 
             new_role.save()
 

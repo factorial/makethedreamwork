@@ -16,9 +16,9 @@
 	  <h1>Sorry, I can't help you make a team to do that. Try a different objective.</h1>
 	  {% else %}
 	  <h1>Your <em>{{ team.objective }}</em> Team</h1>
-	  <p>A possible version of it, anyway. You can use the handbooks provided to kickstart discussion
-	  among human team members or seed AI agents with context. 
-	  You may need to combine roles, or duplicate them, or add more that we didn't think of. 
+	  <p>Use the handbooks provided to kickstart discussion among human team members
+	  or have a kickoff chat with AI versions of them. Your real world team may 
+	  need to combine roles, or duplicate them, or divide them...
 	  </p>
 
 	  <ul class='team'>
@@ -52,14 +52,14 @@
 			  <a class='role assumption button' href='chat?me={{role_dict.role.guid}}'><button><span>Assume this role in chat</span></button></a>
 		  </li>
 		  {% endfor %}
-		  <li>
+		  <!--<li>
 			  <img class='team role avatar' src='{{ team.team.moderator_image_url }}'>
 			  <h2>Moderator</h2>
 			  <form method='GET' action='chat'>
 				  <textarea class='moderator prompt' name='moderator_prompt'>{{ moderator_prompt }}</textarea>
 				  <a><button class='role assumption button'><span>Assume this automated role in chat</span></button></a>
 			  </form>
-		  </li>
+		  </li>-->
 	  </ul>
 	  {% endif %}
 	  </main>

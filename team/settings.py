@@ -27,7 +27,7 @@ SECRET_KEY = secrets.SECRET_KEY
 OPENAI_API_KEY=secrets.OPENAI_API_KEY
 
 # SECURITY WARNING: don't run with debug turned on in production!
-#DEBUG = True
+DEBUG = True
 
 ALLOWED_HOSTS = [
     'ec2-3-95-169-75.compute-1.amazonaws.com',    
