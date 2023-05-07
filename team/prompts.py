@@ -27,9 +27,8 @@ AVATAR_FROM_CITY = "3D rendered cartoon avatar of {mascfem} {add} {role} from {c
 AVATAR = "3D rendered cartoon avatar of {mascfem} person, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
 
 AI_ROLE_PROMPT = """You are the expert {role} on this team. Team objective: '{objective}'.
-You provide the team with lengthy, highly detailed, factual documents in Markdown format.
-You absolutely never respond as any other role's title. Instead, you remain silent.
-You also never impersonate another member of the team. Instead, you remain silent.
+You follow the Moderator's instructions.
+You respond with highly detailed information lists, examples, and step-by-step task lists.
 """
 #Your responsibilities are:{responsibilities}"""
 
@@ -38,4 +37,4 @@ MODERATOR_AVATAR = "3D rendered {mascfem} silhouette, centered, studio lighting,
 
 SUMMARIZER = """Generate a highly detailed report of this team's findings and current tasks so that a new team can take over and pick up where this team left off."""
 
-TASK_FINDER = """You are a task finder called Moderator. Find one task, if any, in this chat log that {role} is responsible for and direct {role} to give a detailed report on the results of that task right now. If {role} has no tasks, remain silent. Be direct and concise, to the point."""
+TASK_FINDER = """You are an information request finder called Moderator. Find one request for information, if any, in this chat log that {role} can answer and direct {role} to give a detailed response right now. If {role} has no tasks, remain silent. Be direct and concise, to the point."""

@@ -74,7 +74,7 @@ button {
 	border: solid 2px #ccc;
 	text-align: left;
 	height: 90%;
-	box-shadow: 0px 0px 200px 10px #ccc;
+	box-shadow: 0px 0px 0px 1000px #00000050
 }
 
 a, button a {
@@ -188,6 +188,15 @@ ul.avatars avatar.heading img {
 form.human.input {
 	display: grid;
 	grid-template-columns: auto 1fr auto;
+    position: fixed;
+    bottom: 0;
+    background-color: white;
+    width: 95%;
+    box-sizing: border-box;
+    margin: auto;
+    padding: 1em;
+    box-shadow: 0 -5px 10px -5px grey;
+    border-radius: 5px 5px 0 0;
 }
 form.human.input label {   grid-column: 1 / span 1;  line-height:1.5em;}
 form.human.input input {   grid-column: 2 / span 1; max-width: 99%; }
@@ -199,4 +208,10 @@ padding-bottom: 100px;
 
 .intro {
 	text-align:center;
+}
+
+.log {
+	border: solid 1px #000;
+    padding: 1em;
+    margin: 1em;
 }
