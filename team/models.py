@@ -5,6 +5,7 @@ from django.utils import timezone
 from team.openai import openai_call, openai_image
 from team.utils import approximate_word_count, persist_image
 from team import prompts
+import urllib.parse
 import requests
 import os
 import openai
@@ -242,7 +243,8 @@ class Team(models.Model):
                 "questions": role.questions_text,
                 "guide": role.guide_text,
                 "tasks_string":  role.tasks_list_text or "",
-                "image_url": role.image_url
+                "image_url": role.image_url,
+                "linkedin_url": "https://www.linkedin.com/search/results/all/?keywords="+ urllib.parse.quote_plus(role.name, safe=''),
             }
             try:
                 retval["team"]["roles"][role.name]["tasks"] = json.loads(role.tasks_list_js_array)

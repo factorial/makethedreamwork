@@ -10,6 +10,7 @@ from team.openai import openai_call, openai_image
 from team.utils import approximate_word_count
 from team import prompts
 
+import urllib.parse
 import requests
 import uuid
 import random
