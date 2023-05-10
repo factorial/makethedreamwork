@@ -143,12 +143,13 @@ class Team(models.Model):
                 print("Something went wrong getting expert answers for {role}.")
                 return
 
+
             new_role.guide_text =result
             if role in role_tasks:
                 print(f"Yes, {role} is in {role_tasks}")
                 role_tasks_to_save=role_tasks[role]
-            elif role in role_tasks[role_tasks.keys(0)]:
-                print(f"Yes, {role} is in team subset of {role_tasks}")
+            elif role in role_tasks[role_tasks.keys()[0]]:
+                print(f"Yes, {role} is in first key of {role_tasks}")
                 role_tasks_to_save=role_tasks[role_tasks.keys(0)][role]
             else:
                 print(f"No, {role} is not in {role_tasks}, so this role gets no tasks.")
