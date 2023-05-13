@@ -163,7 +163,11 @@ def home(request):
         pks = [val for val in Team.objects.filter(private=False).values_list('pk', flat=True)]
 
     template_context["random"] = Team.objects.filter(pk__in=pks)
-    return TemplateResponse(request, "home.html", template_context)
+    response = TemplateResponse(request, "home.html", template_context)
+    response["Cache-Control"] = "no-cache, no-store, must-revalidate" # HTTP 1.1.
+    response["Pragma"] = "no-cache" # HTTP 1.0.
+    response["Expires"] = "0" # Proxies.
+    return response
 
 @require_GET
 def create_team_chat_by_guid(request, team_guid):
@@ -286,7 +290,7 @@ Team, begin work on your objective. Good luck.
                 chat.summarize_and_save()
                 summary=True
             else:
-                chat.log += f"{role.name}: {result}\n\n"
+                chat.log += f"## {role.name}\n{result}\n\n"
                 chat.save()
        
         # Done with the role ring 
