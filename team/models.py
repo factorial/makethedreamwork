@@ -110,8 +110,8 @@ class Team(models.Model):
         base_progress_percent = 20
         
         # generate moderator image (not a real role)
-        self.moderator_image_url = persist_image(openai_image(prompt=prompts.MODERATOR_AVATAR))
-        self.save()
+        #self.moderator_image_url = persist_image(openai_image(prompt=prompts.MODERATOR_AVATAR))
+        #self.save()
 
         for role in roles:
             print(f"Generating role {role} for {self}...")
