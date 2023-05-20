@@ -11,6 +11,30 @@ OPENAI_API_KEY=secrets.OPENAI_API_KEY
 # Configure OpenAI
 openai.api_key = OPENAI_API_KEY
 
+def lookahead_filter(result, prefix, filters):
+    print("looking ahead")
+    lookahead_n =10 
+    i = 0
+    n = next(result)
+    next_thing = prefix
+    while i < lookahead_n and n:
+        next_thing += n['choices'][0]['delta']['content']
+        i += 1
+        n=next(result)
+    try:
+        next_thing += n['choices'][0]['delta']['content']
+    except:
+        print(f"no more tokens in lookahead filter")
+    print(f"i is {i} and nextthing is {next_thing}")
+
+    r = '|'.join(filters)
+    next_thing = (re.sub(r, '', 
+                   next_thing,
+                   flags=re.IGNORECASE))
+    print(f"nextthing is now {next_thing}")
+    return next_thing
+
+
 def openai_call(
       prompt: str,
       temperature: float = 0.5,

@@ -2,7 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-from team.openai import openai_call, openai_image
+from team.openai import openai_call, openai_image, lookahead_filter
 from team.utils import approximate_word_count, persist_image
 from team import prompts
 import urllib.parse
@@ -311,12 +311,11 @@ class Chat(models.Model):
         new_log_item = f"""{end_of_session_message}"""
 
         chatlog = self.log
-        print(f"Summarizing Chat {self.guid} so far")
-
-        summary_system_prompt = prompts.SUMMARIZER.format(ending_message = end_of_session_message)
+        summary_system_prompt = prompts.SUMMARIZER
+        print(f"Summarizing Chat {self.guid} so far with {summary_system_prompt}")
         summary_messages = [{"role": "system", "content": summary_system_prompt }]
         # summary must not fail. a token is about 3/4 of a word.
-        token_count = approximate_word_count(f"{summary_system_prompt}{chatlog}") * (4/3)
+        token_count = approximate_word_count(f"{summary_system_prompt}\n{chatlog}") * (4/3)
         max_token_count = 3000
 
         if token_count > max_token_count:
@@ -324,8 +323,11 @@ class Chat(models.Model):
             substrlen = int(len(chatlog)*scale_factor)
             chatlog = chatlog[-substrlen:]
             print(f"Summarizing last {approximate_word_count(chatlog)} of chatlog")
+            print(f"{chatlog}")
 
-        result = openai_call(chatlog,role="user", max_tokens=1000, previous_messages=summary_messages, stream=True)
+        prompt = f"{chatlog}\n{end_of_session_message}"
+
+        result = openai_call(prompt,role="user", max_tokens=1000, previous_messages=summary_messages, stream=True)
         # Stream the response line by line to the client
         summary = ""
         for message in result:
@@ -334,28 +336,27 @@ class Chat(models.Model):
                 yield_dict = { 'data': message['choices'][0]['delta']['content'] }
                 print(f"yielding {yield_dict}")
                 yield f"data: {json.dumps(yield_dict)}\n\n"
-            except:
-                print('bare except')
+            except Exception as e:
+                print('bare except {e}')
                 pass
 
         # save the log so the chat can be rendered as old log + summary + current log
         self.log_historical = f"{self.log_historical or ''}\n{self.log}\n"
         # but start over with chat.log = just the summary as chat.log
-        new_log_item += f"""\n{summary}
-
+        startover_message = f"""
 # CHAT LOG - TEAM OBJECTIVE = {self.team.objective}
 
 ## Moderator
 Welcome back, team. Continue work on your objective. Good luck.
 """
-        yield_dict = { 'data': f"""
-
-# CHAT LOG - TEAM OBJECTIVE = {self.team.objective}
-
-## Moderator
-Welcome back, team. Continue work on your objective. Good luck.
-""" }
+        yield_dict = { 'data': startover_message }
         yield f"data: {json.dumps(yield_dict)}\n\n"
+
+        new_log_item += f"""
+{summary}
+
+{startover_message}
+"""
         self.log = new_log_item
         self.next_speaker_name = self.team.role_set.first().name
         self.save()
@@ -396,7 +397,7 @@ Welcome back, team. Continue work on your objective. Good luck.
             openai_role = "user"
             prompt = self.log
             print(f"Moderating with {system_prompt}")
-            yield_dict = { 'data': "## Moderator\n" }
+            yield_dict = { 'data': "\n## Moderator\n" }
             yield f"data: {json.dumps(yield_dict)}\n\n"
             result = openai_call(prompt,role=openai_role, max_tokens=500, previous_messages=previous_messages, stream=True)
             # Stream the response line by line to the client
@@ -412,11 +413,16 @@ Welcome back, team. Continue work on your objective. Good luck.
                     continue
 
                 try:
-                    chat_log_update += message['choices'][0]['delta']['content']
-                    yield_dict = { 'data': message['choices'][0]['delta']['content'] }
+                    next_thing = message['choices'][0]['delta']['content']
+                    if 'as' in next_thing.strip().lower():
+                        print(f"next thing is {next_thing}")
+                        # lookahead 5 to filter out "as an ai language model" or the like
+                        next_thing = lookahead_filter(result, next_thing, ['as an ai language model,', 'as the ai language model,', 'as a language model,'])
+                    chat_log_update += next_thing
+                    yield_dict = { 'data': next_thing }
                     yield f"data: {json.dumps(yield_dict)}\n\n"
-                except:
-                    print(f"Lazy except.")
+                except Exception as e:
+                    print(f"Lazy except. {e}")
                     pass
 
             print(f"yielding data:\\n twice")
@@ -463,10 +469,16 @@ Welcome back, team. Continue work on your objective. Good luck.
                     for item in self.summarize_and_save():
                         yield item
                     self.save()
-
+                
                 try:
-                    chat_log_update += message['choices'][0]['delta']['content']
-                    yield_dict = { 'data': message['choices'][0]['delta']['content'] }
+                   
+                    next_thing = message['choices'][0]['delta']['content']
+                    if 'as' in next_thing.strip().lower():
+                        print(f"next thing is {next_thing}")
+                        # lookahead 5 to filter out "as an ai language model" or the like
+                        next_thing = lookahead_filter(result, next_thing, ['as an ai language model,', 'as the ai language model,', 'as a language model,'])
+                    chat_log_update += next_thing
+                    yield_dict = { 'data': next_thing }
                     yield f"data: {json.dumps(yield_dict)}\n\n"
                 except Exception as e:
                     print(f"Laziness error {e}")
