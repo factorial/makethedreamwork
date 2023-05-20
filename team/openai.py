@@ -25,13 +25,13 @@ def lookahead_filter(result, prefix, filters):
         next_thing += n['choices'][0]['delta']['content']
     except:
         print(f"no more tokens in lookahead filter")
-    print(f"i is {i} and nextthing is {next_thing}")
+    #print(f"i is {i} and nextthing is {next_thing}")
 
     r = '|'.join(filters)
     next_thing = (re.sub(r, '', 
                    next_thing,
                    flags=re.IGNORECASE))
-    print(f"nextthing is now {next_thing}")
+    #print(f"nextthing is now {next_thing}")
     return next_thing
 
 

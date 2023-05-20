@@ -200,6 +200,8 @@ class Team(models.Model):
     def generate_chat(self, human_role_guids: list = None):
         new_chat = Chat.objects.create(team_id=self.guid)
         new_chat.save()
+        new_chat.next_speaker_name = self.role_set.first().name
+        new_chat.save()
         guid = new_chat.guid
         if not human_role_guids:
             human_role_guids = []
@@ -217,7 +219,7 @@ class Team(models.Model):
             role.ai_prompt = prompt
             role.save()
 
-        print(f"Made AI agents for {self}. Returning chat object.")
+        print(f"Made AI agents for {self}. Next speaker is {new_chat.next_speaker_name}. Returning chat object.")
         return new_chat
 
 
@@ -327,7 +329,7 @@ class Chat(models.Model):
 
         prompt = f"{chatlog}\n{end_of_session_message}"
 
-        result = openai_call(prompt,role="user", max_tokens=1000, previous_messages=summary_messages, stream=True)
+        result = openai_call(prompt,role="user", max_tokens=1200, previous_messages=summary_messages, stream=True)
         # Stream the response line by line to the client
         summary = ""
         for message in result:
@@ -347,7 +349,7 @@ class Chat(models.Model):
 # CHAT LOG - TEAM OBJECTIVE = {self.team.objective}
 
 ## Moderator
-Welcome back, team. Continue work on your objective. Good luck.
+Welcome back, team. Continue work on your objective.
 """
         yield_dict = { 'data': startover_message }
         yield f"data: {json.dumps(yield_dict)}\n\n"
@@ -368,7 +370,7 @@ Welcome back, team. Continue work on your objective. Good luck.
         if self.next_speaker_name is None:
             self.next_speaker_name = self.team.role_set.first().name
         waiting_for_human_input = self.next_speaker_name in self.human_roles.all().values_list('name', flat=True)
-        print(f"waiting for human? {waiting_for_human_input}")
+        print(f"waiting for human? {waiting_for_human_input}, next spker {self.next_speaker_name}, not in {self.human_roles.all().values_list('name', flat=True)}")
         while not waiting_for_human_input:
             template_context={}
             role_list = []
@@ -389,8 +391,8 @@ Welcome back, team. Continue work on your objective. Good luck.
                 break
 
             print(f"Chatting with role: {role}, next up will be {next_role_name}.")
-            print(f"First a moderator prompt.")
-            
+            print(f"first a moderator prompt.")
+
             # Moderator
             system_prompt = moderator_prompt.format(role=role.name)
             previous_messages = [ {"role": "system", "content": system_prompt} ]
@@ -414,8 +416,8 @@ Welcome back, team. Continue work on your objective. Good luck.
 
                 try:
                     next_thing = message['choices'][0]['delta']['content']
-                    if 'as' in next_thing.strip().lower():
-                        print(f"next thing is {next_thing}")
+                    if next_thing.strip().lower() == 'as':
+                        #print(f"next thing is {next_thing}")
                         # lookahead 5 to filter out "as an ai language model" or the like
                         next_thing = lookahead_filter(result, next_thing, ['as an ai language model,', 'as the ai language model,', 'as a language model,'])
                     chat_log_update += next_thing
@@ -473,8 +475,8 @@ Welcome back, team. Continue work on your objective. Good luck.
                 try:
                    
                     next_thing = message['choices'][0]['delta']['content']
-                    if 'as' in next_thing.strip().lower():
-                        print(f"next thing is {next_thing}")
+                    if next_thing.strip().lower() == 'as':
+                        #print(f"next thing is {next_thing}")
                         # lookahead 5 to filter out "as an ai language model" or the like
                         next_thing = lookahead_filter(result, next_thing, ['as an ai language model,', 'as the ai language model,', 'as a language model,'])
                     chat_log_update += next_thing

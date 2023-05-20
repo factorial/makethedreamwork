@@ -196,6 +196,7 @@ def chat_by_guid(request, guid=None):
 
     brand_new_chat=False
     if not chat.log and not chat.log_historical:
+        brand_new_chat=True
         initial_chat_log = f"""# CHAT LOG - TEAM OBJECTIVE = {chat.team.objective}
 
 ## Moderator
@@ -203,8 +204,9 @@ Team, begin work on your objective. Good luck.
 
 """
         chat.log = initial_chat_log
+        chat.next_role_name = chat.team.role_set.all()[0].name
+        print(f"brand new chat, first role name = {chat.next_role_name}")
         chat.save()
-        brand_new_chat=True
     
     human_input = request.POST.get('human_input', None)
     human_role_name = request.POST.get('human_role_name', None)
@@ -213,7 +215,7 @@ Team, begin work on your objective. Good luck.
         print(f"Human input. new log item: {new_log_item}")
         chat.log += f"\n\n## {human_role_name}\n{human_input}\n\n"
 
-        next_role_name = None
+        next_role_name = chat.team.role_set.all()[0].name
         role_list = []
         for role in chat.team.role_set.all():
             role_list.append(role)
@@ -229,7 +231,7 @@ Team, begin work on your objective. Good luck.
             print(f"not human: {role.name}")
 
         print(f"Next up is {next_role_name}") 
-        chat.next_speaker_name = next_role_name or role_list[0].name
+        chat.next_speaker_name = next_role_name
         chat.save()
         return HttpResponseRedirect(reverse('chat-by-guid', args=(guid,)))
 
