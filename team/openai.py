@@ -1,9 +1,12 @@
-from django.conf import settings
+
+# This file must never import django stuff.
+
 import openai
 import time
 import re
+from team import secrets
 
-OPENAI_API_KEY=settings.OPENAI_API_KEY
+OPENAI_API_KEY=secrets.OPENAI_API_KEY
 
 # Configure OpenAI
 openai.api_key = OPENAI_API_KEY
@@ -13,8 +16,10 @@ def openai_call(
       temperature: float = 0.5,
       max_tokens: int = 100,
       role: str = "system",
-      previous_messages: list = None
+      previous_messages: list = None,
+      stream = False,
 ):
+        print(f"openai call, stream = {stream}")
         model = "gpt-3.5-turbo"
         max_retries = 5
         for retries in range(0, max_retries):
@@ -31,11 +36,21 @@ def openai_call(
                     max_tokens=max_tokens,
                     n=1,
                     stop=None,
+                    stream=stream,
                 )
-                return (re.sub('as an ai language model, |as the ai language model, ', '', 
+                
+                if stream:
+                    for message in response:
+                        yield message
+                    return
+
+                retval = (re.sub('as an ai language model, |as the ai language model, ', '', 
                                response.choices[0].message.content.strip(), 
-                               flags=re.IGNORECASE), 
-                        response.usage.total_tokens)
+                               flags=re.IGNORECASE))
+                #response.usage.total_tokens)
+                print(f"Returning {retval}")
+                yield retval
+                return retval
             except openai.error.RateLimitError:
                 print(
                     "   *** The OpenAI API rate limit has been exceeded. Waiting 10 seconds and trying again. ***"
@@ -78,7 +93,8 @@ def openai_call(
             print(
                 "   *** OpenAI API max retries or weird error hit, so bailing on request & returning false."
             )
-            return False, 0
+            yield False
+            return False
 
 def openai_image(prompt):
     max_retries = 5

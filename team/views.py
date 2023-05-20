@@ -185,11 +185,6 @@ def create_team_chat_by_guid(request, team_guid):
     return HttpResponseRedirect(reverse('chat-by-guid', args=(new_chat.guid,))+qs)
 
 def chat_by_guid(request, guid=None):
-    human_input = request.POST.get('human_input', None)
-    human_role_name = request.POST.get('human_role_name', None)
-    full_meeting = request.GET.get('full_meeting', None)
-    moderator_prompt = request.GET.get('moderator_prompt', prompts.TASK_FINDER)
-
     template_context = {}
     try:
         chat = Chat.objects.get(guid=guid)
@@ -211,98 +206,63 @@ Team, begin work on your objective. Good luck.
         chat.save()
         brand_new_chat=True
     
-    last_human_role_name = human_role_name
-    possible_human_role_names = [role.name for role in chat.human_roles.all()]
-
-    default_human_role_name = "Moderator"
-    if default_human_role_name.lower() in [name.lower() for name in chat.team.role_set.all().values_list('name', flat=True)]:
-        default_human_role_name = "M.C."
-    
-    waiting_for_human_input = False
-    if not full_meeting and not brand_new_chat and not last_human_role_name:
-        waiting_for_human_input = True
-        template_context["human_role_name"] = default_human_role_name
+    human_input = request.POST.get('human_input', None)
+    human_role_name = request.POST.get('human_role_name', None)
     if human_input and human_role_name:
+        new_log_item = f"\n\n## {human_role_name}\n{human_input}\n\n"
+        print(f"Human input. new log item: {new_log_item}")
         chat.log += f"\n\n## {human_role_name}\n{human_input}\n\n"
-        chat.save()
-    
 
-    summary = None
-    print(f"{ waiting_for_human_input } - human turn?")
-    while not waiting_for_human_input:
-        print(f"Rotating through all roles in team {chat.team}")
+        next_role_name = None
         role_list = []
         for role in chat.team.role_set.all():
             role_list.append(role)
-            role_list.append(None)
-
+        print(f"role list is {role_list} - time to find the moderator that comes next")
         for idx, role in enumerate(role_list):
-            # if role is None, do the interstitial thing that happens after every role
-            # eventually let humans be the interstial from previous requests they made for a specific role
-            print(f"Chatting with role: {role}")
-            if role is None:
+            if role.name == human_role_name:
                 try:
                     next_role_name = role_list[idx+1].name
                 except:
                     next_role_name = role_list[0].name
-
-                system_prompt = moderator_prompt.format(role=next_role_name)
-                previous_messages = [ {"role": "system", "content": system_prompt} ]
-                openai_role = "user"
-                prompt = chat.log
-                print(f"Moderating with {system_prompt}")
-                result, tokens_used = openai_call(prompt,role=openai_role, max_tokens=500, previous_messages=previous_messages)
-                print(result)
-                if result:
-                    chat.log += f"\n## {default_human_role_name}\n{result}\n\n"
-                    chat.save()
-                continue
-                    
-
-            # move through the order until passing the last speaking human, as long as that human was in the list
-            if last_human_role_name in possible_human_role_names:
-                if role.name == last_human_role_name:
-                    last_human_role_name = None
-                continue
-            
-            if role.name in possible_human_role_names:
-                print(f"Found a human: {role}")
-                waiting_for_human_input=True
-                template_context["human_role_name"] = role.name
+                print(f"is the human {role.name} so next is: {next_role_name}")
                 break
+            print(f"not human: {role.name}")
 
-            # TODO HERE: remodel chat as list of messages so we can make previous_messages mark "assistant"
-            # all the previous messages from this role.
-            # Then, refactor each role into two system prompts: info sharing, then task suggestion. each task is
-            # either info gathering or other (thus, necessary for a person to do and eternally undone unless human says so)
-            # then maybe make moderator a permanent fixture of this structure who summarizes each group of messages into tasks & facts?
-            system_prompt = f"""{role.ai_prompt}"""
-            user_prompt = f"""{chat.log or ""}\n\n"""
-            previous_messages = [ {"role": "system", "content": system_prompt} ]
-            openai_role = "user"
-            prompt = user_prompt
+        print(f"Next up is {next_role_name}") 
+        chat.next_speaker_name = next_role_name or role_list[0].name
+        chat.save()
+        return HttpResponseRedirect(reverse('chat-by-guid', args=(guid,)))
 
-            result, tokens_used = openai_call(prompt,role=openai_role, max_tokens=2000, previous_messages=previous_messages)
-            print(result)
-            print(f"TOKEN USED {tokens_used}")
-            if result is False:
-                # Summarize chat so far.
-                chat.summarize_and_save()
-                summary=True
-            else:
-                chat.log += f"## {role.name}\n{result}\n\n"
-                chat.save()
-       
-        # Done with the role ring 
-        if len(possible_human_role_names) == 0:
-            print(f"no human role names possible")
-            if summary or not full_meeting:
-                waiting_for_human_input=True
-                print(f"waiting for human input")
-                template_context["human_role_name"] = "Moderator"
-            else:
-                print(f"Full meeting - Not waiting for human input after role ring for {chat.team}.")
 
+
+    # find next human speaker name & give it to template
+    possible_human_names = chat.human_roles.all().values_list('name', flat=True)
+    if len(possible_human_names) == 0:
+        next_human_role_name = "Human Moderator"
+    elif len(possible_human_names) == 1:
+        next_human_role_name = possible_human_names[0]
+    else:
+        role_list = []
+        for role in chat.team.role_set.all():
+            role_list.append(role)
+        for idx, role in enumerate(role_list):
+            # move through the order until the next speaker,
+            # then find the next human speaker
+            if role is None:
+                continue 
+            if role.name != chat.next_speaker_name:
+                seen_next_speaker=True
+                continue
+
+            if seen_next_speaker and chat.next_speaker_name in possible_human_names:
+                next_human_role_name = chat.next_speaker_name
+                break
+            
+        if not next_human_role_name:
+            next_human_role_name = possible_human_names[0]
+
+    print(f"Next human role: {next_human_role_name}")
+    template_context["human_role_name"] = next_human_role_name
     template_context["chat"] = chat
     return TemplateResponse(request, "chat.html", template_context)
 

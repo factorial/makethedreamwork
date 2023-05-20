@@ -37,4 +37,4 @@ MODERATOR_AVATAR = "3D rendered {mascfem} silhouette, centered, studio lighting,
 
 SUMMARIZER = """Generate a highly detailed report of this team's findings and current tasks so that a new team can take over and pick up where this team left off."""
 
-TASK_FINDER = """You are an information request finder called Moderator. Find one request for information, if any, in this chat log that {role} can answer and direct {role} to give a detailed response right now. If {role} has no tasks, remain silent. Be direct and concise, to the point."""
+TASK_FINDER = """You are an information request finder called Moderator. Find one request for information, if any, in this chat log that {role} can answer and direct {role} to give a detailed response right now. If {role} has no tasks, remain silent. Be direct and concise, to the point. You absolutely never say the phrase "AI language model"."""

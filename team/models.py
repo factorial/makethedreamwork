@@ -27,13 +27,13 @@ class Team(models.Model):
     moderator_image_url = models.URLField(max_length=1023, null=True, blank=True)
 
     def __str__(self):
-        return f"{self.objective} ({self.guid}) private={self.private} tokens_used={self.tokens_used}"
+        return f"{self.objective} ({self.guid}) private={self.private}"
 
     @classmethod
     def create_and_generate_team(cls, OBJECTIVE):
         prompt = prompts.CHECK_OFFENSE.format(OBJECTIVE=OBJECTIVE)
         print(prompt)
-        result, tokens_used = openai_call(prompt, max_tokens=100)
+        result = next(openai_call(prompt, max_tokens=100))
         print("Offensive? "+ result)
         if not result or 'yes' in result.lower():
             return None
@@ -60,15 +60,14 @@ class Team(models.Model):
         print(f"Prompt building for team {self}")
         prompt = prompts.DEFINE_TEAM.format(objective=self.objective)
         print(f"Calling openai for team {self}")
-        result, tokens_used = openai_call(prompt, max_tokens=3000)
+        result = next(openai_call(prompt, max_tokens=3000))
         print(result)
-        print(f"TOKENS USED: {tokens_used}")
         if not result:
             print(f"Something went wrong getting team roles for {self}.")
             return
 
         self.description=result
-        self.tokens_used += tokens_used
+        self.tokens_used = 0
         self.generation_progress_percent = 10
         self.save()
 
@@ -84,14 +83,13 @@ class Team(models.Model):
         valid_json = False
         while not valid_json:
             prompt = prompts.LIST_ROLES.format(context=context)
-            result, tokens_used = openai_call(prompt)
+            result = next(openai_call(prompt))
             result = "["+result
             print(result)
-            print(f"TOKENS USED: {tokens_used}")
             if not result:
                 print(f"Something went wrong getting openai JS array roles out of team description for {self}.")
                 return
-            self.tokens_used += tokens_used
+            self.tokens_used = 0
             self.generation_progress_percent = 20 
             self.save()
 
@@ -117,14 +115,13 @@ class Team(models.Model):
             print(f"Generating role {role} for {self}...")
             loop_context = context
             prompt = prompts.NEW_MEMBER_QUESTIONS.format(context=loop_context, role=role, objective=self.objective)
-            result, tokens_used = openai_call(prompt, max_tokens=3000)
+            result = next(openai_call(prompt, max_tokens=3000))
             print(result)
-            print(f"TOKENS USED: {tokens_used}")
             if not result:
                 print("Something went wrong getting new member questions for {role}.")
                 return
             progress_points = progress_points + 1
-            self.tokens_used += tokens_used
+            self.tokens_used = 0
             self.generation_progress_percent = round(base_progress_percent + ((100-base_progress_percent)*(progress_points/total_progress_points)))
             self.save()
 
@@ -137,9 +134,8 @@ class Team(models.Model):
 
             prompt = prompts.GENERATE_HANDBOOK.format(context=loop_context, role=role)
 
-            result, tokens_used = openai_call(prompt, max_tokens=3000)
+            result = next(openai_call(prompt, max_tokens=3000))
             print(result)
-            print(f"TOKENS USED: {tokens_used}")
             if not result:
                 print("Something went wrong getting expert answers for {role}.")
                 return
@@ -172,7 +168,7 @@ class Team(models.Model):
             new_role.save()
 
             progress_points = progress_points + 1
-            self.tokens_used += tokens_used
+            self.tokens_used = 0
             self.generation_progress_percent = round(base_progress_percent + ((100-base_progress_percent)*(progress_points/total_progress_points)))
             self.save()
 
@@ -197,8 +193,8 @@ class Team(models.Model):
         # calculate_cost()
         cost_per_token = (0.002/1000)
         cost_per_image = (0.018)
-        cost = (self.tokens_used * cost_per_token) + (cost_per_image * self.role_set.count())
-        print(f"After downloading {self.role_set.count()} images, {self} took {total_time_mins} minutes & {self.tokens_used} tokens (${cost}).")
+        #cost = (self.tokens_used * cost_per_token) + (cost_per_image * self.role_set.count())
+        #print(f"After downloading {self.role_set.count()} images, {self} took {total_time_mins} minutes & {self.tokens_used} tokens (${cost}).")
 
 
     def generate_chat(self, human_role_guids: list = None):
@@ -299,6 +295,7 @@ class Chat(models.Model):
     guid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     log = models.TextField(null=True, blank=True)
     log_historical = models.TextField(null=True, blank=True)
+    next_speaker_name = models.TextField(null=True, blank=True)
 
     team = models.ForeignKey(Team, on_delete=models.CASCADE)
     human_roles =  models.ManyToManyField(Role)
@@ -307,7 +304,11 @@ class Chat(models.Model):
         return f"Chat ({self.guid}) for {self.team.objective} team"
 
     def summarize_and_save(self):
-        end_of_session_message = "## END OF MEETING SUMMARY"
+        print("*************** summarizing and saving chat *****")
+        end_of_session_message = "## END OF MEETING SUMMARY\n\n"
+        yield_dict = { 'data': end_of_session_message }
+        yield f"data: {json.dumps(yield_dict)}\n\n"
+        new_log_item = f"""{end_of_session_message}"""
 
         chatlog = self.log
         print(f"Summarizing Chat {self.guid} so far")
@@ -322,22 +323,164 @@ class Chat(models.Model):
             scale_factor = max_token_count/token_count
             substrlen = int(len(chatlog)*scale_factor)
             chatlog = chatlog[-substrlen:]
+            print(f"Summarizing last {approximate_word_count(chatlog)} of chatlog")
 
-        result, tokens_used = openai_call(chatlog,role="user", max_tokens=1000, previous_messages=summary_messages)
-        print(result)
-        print(f"TOKENS USED {tokens_used}")
-        summary = result
+        result = openai_call(chatlog,role="user", max_tokens=1000, previous_messages=summary_messages, stream=True)
+        # Stream the response line by line to the client
+        summary = ""
+        for message in result:
+            try:
+                summary += message['choices'][0]['delta']['content']
+                yield_dict = { 'data': message['choices'][0]['delta']['content'] }
+                print(f"yielding {yield_dict}")
+                yield f"data: {json.dumps(yield_dict)}\n\n"
+            except:
+                print('bare except')
+                pass
+
         # save the log so the chat can be rendered as old log + summary + current log
         self.log_historical = f"{self.log_historical or ''}\n{self.log}\n"
         # but start over with chat.log = just the summary as chat.log
-        self.log = f"""{end_of_session_message}
-{summary}
+        new_log_item += f"""\n{summary}
 
 # CHAT LOG - TEAM OBJECTIVE = {self.team.objective}
 
-Moderator: Welcome back, team. Continue work on your objective. Good luck.
+## Moderator
+Welcome back, team. Continue work on your objective. Good luck.
 """
-        self.save()
+        yield_dict = { 'data': f"""
 
+# CHAT LOG - TEAM OBJECTIVE = {self.team.objective}
+
+## Moderator
+Welcome back, team. Continue work on your objective. Good luck.
+""" }
+        yield f"data: {json.dumps(yield_dict)}\n\n"
+        self.log = new_log_item
+        self.next_speaker_name = self.team.role_set.first().name
+        self.save()
+        return new_log_item
+
+
+    def do_one_chat_round(self):
+        moderator_prompt = prompts.TASK_FINDER
+        if self.next_speaker_name is None:
+            self.next_speaker_name = self.team.role_set.first().name
+        waiting_for_human_input = self.next_speaker_name in self.human_roles.all().values_list('name', flat=True)
+        print(f"waiting for human? {waiting_for_human_input}")
+        while not waiting_for_human_input:
+            template_context={}
+            role_list = []
+            for role in self.team.role_set.all():
+                role_list.append(role)
+
+            print(f"Rotating through all roles in team {self.team}: {role_list}")
+            for idx, role in enumerate(role_list):
+                # find the new next speaker after this one
+                if role and role.name != self.next_speaker_name:
+                    print(f"NOT chatting with {role.name}, isnt next speaker {self.next_speaker_name}")
+                    continue
+
+                try:
+                    next_role_name = role_list[idx+1].name
+                except:
+                    next_role_name = role_list[0].name
+                break
+
+            print(f"Chatting with role: {role}, next up will be {next_role_name}.")
+            print(f"First a moderator prompt.")
+            
+            # Moderator
+            system_prompt = moderator_prompt.format(role=role.name)
+            previous_messages = [ {"role": "system", "content": system_prompt} ]
+            openai_role = "user"
+            prompt = self.log
+            print(f"Moderating with {system_prompt}")
+            yield_dict = { 'data': "## Moderator\n" }
+            yield f"data: {json.dumps(yield_dict)}\n\n"
+            result = openai_call(prompt,role=openai_role, max_tokens=500, previous_messages=previous_messages, stream=True)
+            # Stream the response line by line to the client
+            chat_log_update = ""
+            for message in result:
+                if message is False:
+                    # error. probably too long.
+                    # Summarize chat so far.
+                    print("Summarizinggg.")
+                    for item in self.summarize_and_save():
+                        yield item
+                    self.save()
+                    continue
+
+                try:
+                    chat_log_update += message['choices'][0]['delta']['content']
+                    yield_dict = { 'data': message['choices'][0]['delta']['content'] }
+                    yield f"data: {json.dumps(yield_dict)}\n\n"
+                except:
+                    print(f"Lazy except.")
+                    pass
+
+            print(f"yielding data:\\n twice")
+            yield_dict = { 'data': "\n\n" }
+            yield f"data: {json.dumps(yield_dict)}\n\n"
+
+            new_log_line = f"\n## Moderator\n{chat_log_update}\n\n"
+            print(f"Saving new line: {new_log_line}")
+            self.log += new_log_line
+            self.save()
+
+            # Now talk to the speaker.
+            print(f"Now time to talk to {role}") 
+            if role in self.human_roles.all():
+                # Done with chat, pausing for human response
+                print(f"Waiting on human: {role}")
+                waiting_for_human_input=True
+                self.next_speaker_name = role.name
+                self.save()
+                break
+
+            #chatting with an AI role
+
+            # TODO HERE: remodel chat as list of messages so we can make previous_messages mark "assistant"
+            # all the previous messages from this role.
+            # Then, refactor each role into two system prompts: info sharing, then task suggestion. each task is
+            # either info gathering or other (thus, necessary for a person to do and eternally undone unless human says so)
+            # then maybe make moderator a permanent fixture of this structure who summarizes each group of messages into tasks & facts?
+            system_prompt = f"""{role.ai_prompt}"""
+            user_prompt = f"""{self.log or ""}\n\n"""
+            previous_messages = [ {"role": "system", "content": system_prompt} ]
+            openai_role = "user"
+            prompt = user_prompt
+
+            yield_dict = { 'data': f"## {role.name}\n" }
+            yield f"data: {json.dumps(yield_dict)}\n\n"
+            result = openai_call(prompt,role=openai_role, max_tokens=1000, previous_messages=previous_messages, stream=True)
+
+            # Stream the response line by line to the client
+            chat_log_update = ""
+            for message in result:
+                if message is False:
+                    print("Summarizinggg.")
+                    for item in self.summarize_and_save():
+                        yield item
+                    self.save()
+
+                try:
+                    chat_log_update += message['choices'][0]['delta']['content']
+                    yield_dict = { 'data': message['choices'][0]['delta']['content'] }
+                    yield f"data: {json.dumps(yield_dict)}\n\n"
+                except Exception as e:
+                    print(f"Laziness error {e}")
+                    pass
+
+            yield_dict = { 'data': "\n\n" }
+            yield f"data: {json.dumps(yield_dict)}\n\n"
+            self.log += f"## {role.name}\n{chat_log_update}\n\n"
+            self.next_speaker_name = next_role_name
+            self.save()
+           
+            # Done with the role ring 
+            if self.human_roles.count() == 0:
+                print(f"no human role names possible. THIS IS NOW A HUGE PROBLEM because i stopped caring if summaries are made.")
+        return
 
 

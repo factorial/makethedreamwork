@@ -17,7 +17,7 @@
   height: 1px;
 }
 
-#scroller {
+#scroller  * {
 	white-space:break-spaces;
 	font-family:monospace;
 }
@@ -31,17 +31,19 @@
 	  <h1>No such chat.</h1>
 	  {% else %}
 	  <h1><a href='/team/{{ chat.team.guid }}'><em>{{ chat.team.objective }}</em></a> Team Chat</h1>
+	  <h1>Sorry, chat's down at the moment. I'm working on it.</h1>
 	  <h2>Bookmark this page. It's your own chat and without this URL you can't get back to it.</h2>
 	  <p class='note about alpha'>Chat is an in-development preview, subject to change. AI team members generally just provide useful suggestions. 
 	  Consider them a stand-in while you seek a better fit for the role.</p>
 	
-	  <div id="scroller" class='chat log'>{{chat.log_historical|default:"" }}{{ chat.log|default:"" }}
+	  <div id="scroller" class='chat log'>
+		  <div id='scroller_inner'>{{chat.log_historical|default:"" }}{{ chat.log|default:"" }}</div>
 		  <div id="anchor"></div>
 	  </div>
 
 	  <form method='post' class='human chat input'>
 		  <label><span>{{human_role_name}}:</span></label>
-		  <input id='human_input' type='text' name='human_input' placeholder='(You can stay silent.)'>
+		  <textarea id='human_input' type='text' name='human_input' placeholder='(You can stay silent or interrupt.)'></textarea>
 		  <input type='hidden' name='human_role_name' value='{{human_role_name}}'>
 		  {% csrf_token %}
 		  <input type='submit'>
@@ -53,5 +55,15 @@
   </body>
   <script>
 	  window.scrollTo(0, document.body.scrollHeight);
+
+        // Connect to the server and listen for streamed responses
+	  var source = new EventSource("http://makethedreamwork.com:5000/generate/{{chat.guid}}");
+        source.onmessage = function (event) {
+			  var data_json = event.data;
+			  var data = JSON.parse(data_json)['data']
+			  var el = document.getElementById("scroller_inner");
+			  el.innerHTML = el.innerHTML + data;
+			  console.log("Token: data");
+        };
   </script>
 </html>
