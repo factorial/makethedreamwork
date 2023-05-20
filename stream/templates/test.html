@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>OpenAI Streaming Example</title>
+</head>
+<body>
+    <h1>Generated Text:</h1>
+    <ul id="generated-text"></ul>
+
+    <script>
+        // Connect to the server and listen for streamed responses
+        var source = new EventSource("/generate");
+        source.onmessage = function (event) {
+            var data = event.data;
+            var listItem = document.createElement("li");
+            listItem.innerHTML = data;
+            document.getElementById("generated-text").appendChild(listItem);
+        };
+    </script>
+</body>
+</html>
+
