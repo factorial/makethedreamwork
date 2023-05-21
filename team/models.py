@@ -419,7 +419,7 @@ Welcome back, team. Continue work on your objective.
                     if next_thing.strip().lower() == 'as':
                         #print(f"next thing is {next_thing}")
                         # lookahead 5 to filter out "as an ai language model" or the like
-                        next_thing = lookahead_filter(result, next_thing, ['as an ai language model,', 'as the ai language model,', 'as a language model,'])
+                        next_thing = lookahead_filter(result, next_thing, ['as an ai language model, ', 'as the ai language model, ', 'as a language model, '])
                     chat_log_update += next_thing
                     yield_dict = { 'data': next_thing }
                     yield f"data: {json.dumps(yield_dict)}\n\n"
@@ -478,7 +478,7 @@ Welcome back, team. Continue work on your objective.
                     if next_thing.strip().lower() == 'as':
                         #print(f"next thing is {next_thing}")
                         # lookahead 5 to filter out "as an ai language model" or the like
-                        next_thing = lookahead_filter(result, next_thing, ['as an ai language model,', 'as the ai language model,', 'as a language model,'])
+                        next_thing = lookahead_filter(result, next_thing, ['as an ai language model, ', 'as the ai language model, ', 'as a language model, '])
                     chat_log_update += next_thing
                     yield_dict = { 'data': next_thing }
                     yield f"data: {json.dumps(yield_dict)}\n\n"

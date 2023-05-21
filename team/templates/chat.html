@@ -53,16 +53,39 @@
 	  </main>
   </body>
   <script>
-	  window.scrollTo(0, document.body.scrollHeight);
+	  function isWindowScrolledToBottom() {
+		  var windowHeight = window.innerHeight; // Height of the visible window area
+		  var documentHeight = Math.max(
+		    document.body.scrollHeight,
+		    document.body.offsetHeight,
+		    document.documentElement.clientHeight,
+		    document.documentElement.scrollHeight,
+		    document.documentElement.offsetHeight
+		  ); // Height of the entire document
+
+		  var scrollPosition = window.pageYOffset || document.documentElement.scrollTop; // Current scroll position
+
+		  return (documentHeight - windowHeight - scrollPosition) <= 0;
+		}
+
 
         // Connect to the server and listen for streamed responses
 	  var source = new EventSource("http://makethedreamwork.com:5000/generate/{{chat.guid}}");
         source.onmessage = function (event) {
+			  var scrolltobottom = isWindowScrolledToBottom();
 			  var data_json = event.data;
 			  var data = JSON.parse(data_json)['data']
 			  var el = document.getElementById("scroller_inner");
-			  el.innerHTML = el.innerHTML + data;
-			  console.log("Token: data");
+			  el.textContent = el.textContent + data;
+			  if (scrolltobottom) {
+					    window.scrollTo(0, document.body.scrollHeight);
+				    } else {
+						      //console.log("not scrolling");
+					      }
         };
+
+	  source.onerror = function(event) {
+			    console.log("An error occurred while attempting to connect.");
+		    };
   </script>
 </html>

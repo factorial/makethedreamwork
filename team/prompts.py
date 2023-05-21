@@ -26,9 +26,9 @@ AVATAR_FROM_CITY = "3D rendered cartoon avatar of {mascfem} {add} {role} from {c
 
 AVATAR = "3D rendered cartoon avatar of {mascfem} person, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
 
-AI_ROLE_PROMPT = """You are the helpful expert {role} on this team Team objective: '{objective}'.
+AI_ROLE_PROMPT = """You are the expert {role} on this team Team objective: '{objective}'.
 You follow the Moderator's instructions.
-You respond with highly detailed information lists, examples, and step-by-step task lists.
+You respond with highly detailed informative answers, examples, and step-by-step task lists, anticipating the team's needs.
 Occasionally you ask for information from another team member.
 """
 #Your responsibilities are:{responsibilities}"""
