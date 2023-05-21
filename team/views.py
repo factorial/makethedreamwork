@@ -197,10 +197,12 @@ def chat_by_guid(request, guid=None):
     brand_new_chat=False
     if not chat.log and not chat.log_historical:
         brand_new_chat=True
-        initial_chat_log = f"""# CHAT LOG - TEAM OBJECTIVE = {chat.team.objective}
+        initial_chat_log = f"""<h1>CHAT LOG - TEAM OBJECTIVE = {chat.team.objective}</h1>
 
-## Moderator
-Team, begin work on your objective. Good luck.
+<section>
+<h3>Moderator</h3>
+<p>Team, begin work on your objective. Good luck.</p>
+</section>
 
 """
         chat.log = initial_chat_log
@@ -211,9 +213,9 @@ Team, begin work on your objective. Good luck.
     human_input = request.POST.get('human_input', None)
     human_role_name = request.POST.get('human_role_name', None)
     if human_input and human_role_name:
-        new_log_item = f"\n\n## {human_role_name}\n{human_input}\n\n"
+        new_log_item = f"\n\n<section><h3>{human_role_name}</h3>\n{human_input}\n\n</section>"
         print(f"Human input. new log item: {new_log_item}")
-        chat.log += f"\n\n## {human_role_name}\n{human_input}\n\n"
+        chat.log += f"\n\n<seciton><h3>{human_role_name}</h3>\n{human_input}\n\n</section>"
 
         next_role_name = chat.team.role_set.all()[0].name
         role_list = []

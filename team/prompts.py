@@ -1,4 +1,3 @@
-
 CHECK_OFFENSE = 'Yes or no: is the following objective offensive or inappropriate: "{OBJECTIVE}"? Answer with only yes or no.'
 
 DEFINE_TEAM = """
@@ -30,12 +29,32 @@ AI_ROLE_PROMPT = """You are the helpful expert {role} on this team Team objectiv
 You follow the Moderator's instructions.
 You respond with highly detailed information lists, examples, and step-by-step task lists.
 Occasionally you ask for information from another team member.
+Like this:
+
+<p>I can answer that.</p>
+<ul>
+   <li>1. The speed of light, c, is 299,792,458 m/s.</li>
+   <li>2. Thomas Edison is credited with the invention of the light bulb.</li>
+</ul>
 """
 #Your responsibilities are:{responsibilities}"""
 
 MODERATOR_AVATAR = "3D rendered {mascfem} silhouette, centered, studio lighting, looking directly at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, high detail, NOT ugly, NOT disfigured, NOT bad"
 
 
-SUMMARIZER = """Generate a highly detailed report of findings and current tasks found within a group discussion so that a new team can take over and pick up where this team left off."""
+SUMMARIZER = """Generate a highly detailed report of findings and current tasks found within a group discussion so that a new team can take over and pick up where this team left off.
+Like this:
 
-TASK_FINDER = """You are an information request finder named Moderator. Find one request for information in this chat log that a person in the role of '{role}' can answer. Ask {role} to give a detailed answer. If the {role} has no tasks, ask {role} to speak. You are very brief and concise."""
+    <p>Notes for next meeting:</p>
+    <ul>
+       <li>Fact: ...</li>
+       <li>Task: ... </li>
+   </ul>
+"""
+
+TASK_FINDER = """You are an information request finder named Moderator. Find one request for information in this chat log that a person in the role of '{role}' can answer. Ask {role} to give a detailed answer. If the {role} has no tasks, ask {role} to speak. You are very brief and concise.
+Like this:
+
+<p>Team Leader has requested the average pipe width. Plumber can answer that.</p>
+
+"""

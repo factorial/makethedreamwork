@@ -36,7 +36,7 @@
 	  Consider them a stand-in while you seek a better fit for the role.</p>
 	
 	  <div id="scroller" class='chat log'>
-		  <div id='scroller_inner'>{{chat.log_historical|default:"" }}{{ chat.log|default:"" }}</div>
+		  <div id='scroller_inner'>{{chat.log_historical|safe|default:"" }}{{ chat.log|safe|default:"" }}</div>
 		  <div id="anchor"></div>
 	  </div>
 
@@ -57,12 +57,22 @@
 
         // Connect to the server and listen for streamed responses
 	  var source = new EventSource("http://makethedreamwork.com:5000/generate/{{chat.guid}}");
+	  var prev_invalid_html = "";
         source.onmessage = function (event) {
 			  var data_json = event.data;
 			  var data = JSON.parse(data_json)['data']
 			  var el = document.getElementById("scroller_inner");
-			  el.innerHTML = el.innerHTML + data;
-			  console.log("Token: data");
+			  const prior_innerHTML = el.innerHTML;
+			  el.innerHTML = el.innerHTML + prev_invalid_html + data;
+			  if (el.innerHTML == el.innerHTML + prior_innerHTML + data) {
+					    // success
+					    prev_invalid_html = ""
+				    } else {
+						      // not valid yet
+						      prev_invalid_html += data;
+						      el.innerHTML = prior_innerHTML;
+					      }
+			  console.log("Token: "+ data);
         };
   </script>
 </html>

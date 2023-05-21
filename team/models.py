@@ -307,7 +307,7 @@ class Chat(models.Model):
 
     def summarize_and_save(self):
         print("*************** summarizing and saving chat *****")
-        end_of_session_message = "## END OF MEETING SUMMARY\n\n"
+        end_of_session_message = "<h2>END OF MEETING SUMMARY</h2>\n\n"
         yield_dict = { 'data': end_of_session_message }
         yield f"data: {json.dumps(yield_dict)}\n\n"
         new_log_item = f"""{end_of_session_message}"""
@@ -331,7 +331,7 @@ class Chat(models.Model):
 
         result = openai_call(prompt,role="user", max_tokens=1200, previous_messages=summary_messages, stream=True)
         # Stream the response line by line to the client
-        summary = ""
+        summary = "<section>"
         for message in result:
             try:
                 summary += message['choices'][0]['delta']['content']
@@ -346,18 +346,21 @@ class Chat(models.Model):
         self.log_historical = f"{self.log_historical or ''}\n{self.log}\n"
         # but start over with chat.log = just the summary as chat.log
         startover_message = f"""
-# CHAT LOG - TEAM OBJECTIVE = {self.team.objective}
+<h1>CHAT LOG - TEAM OBJECTIVE = {self.team.objective}</h1>
 
-## Moderator
-Welcome back, team. Continue work on your objective.
+<section>
+<h3>Moderator</h3>
+<p>Welcome back, team. Continue work on your objective.</p>
+</section>
 """
-        yield_dict = { 'data': startover_message }
+        yield_dict = { 'data': f"{startover_message}</section>" }
         yield f"data: {json.dumps(yield_dict)}\n\n"
 
         new_log_item += f"""
 {summary}
 
 {startover_message}
+</section>
 """
         self.log = new_log_item
         self.next_speaker_name = self.team.role_set.first().name
@@ -399,7 +402,7 @@ Welcome back, team. Continue work on your objective.
             openai_role = "user"
             prompt = self.log
             print(f"Moderating with {system_prompt}")
-            yield_dict = { 'data': "\n## Moderator\n" }
+            yield_dict = { 'data': "\n<section>\n<h3>Moderator</h3>\n" }
             yield f"data: {json.dumps(yield_dict)}\n\n"
             result = openai_call(prompt,role=openai_role, max_tokens=500, previous_messages=previous_messages, stream=True)
             # Stream the response line by line to the client
@@ -428,10 +431,10 @@ Welcome back, team. Continue work on your objective.
                     pass
 
             print(f"yielding data:\\n twice")
-            yield_dict = { 'data': "\n\n" }
+            yield_dict = { 'data': "\n\n</section>" }
             yield f"data: {json.dumps(yield_dict)}\n\n"
 
-            new_log_line = f"\n## Moderator\n{chat_log_update}\n\n"
+            new_log_line = f"\n<section><h3>Moderator</h3>\n{chat_log_update}\n\n</section>"
             print(f"Saving new line: {new_log_line}")
             self.log += new_log_line
             self.save()
@@ -459,7 +462,7 @@ Welcome back, team. Continue work on your objective.
             openai_role = "user"
             prompt = user_prompt
 
-            yield_dict = { 'data': f"## {role.name}\n" }
+            yield_dict = { 'data': f"<section><h3>{role.name}</h3>\n" }
             yield f"data: {json.dumps(yield_dict)}\n\n"
             result = openai_call(prompt,role=openai_role, max_tokens=1000, previous_messages=previous_messages, stream=True)
 
@@ -486,9 +489,9 @@ Welcome back, team. Continue work on your objective.
                     print(f"Laziness error {e}")
                     pass
 
-            yield_dict = { 'data': "\n\n" }
+            yield_dict = { 'data': "\n\n</section>" }
             yield f"data: {json.dumps(yield_dict)}\n\n"
-            self.log += f"## {role.name}\n{chat_log_update}\n\n"
+            self.log += f"<section><h3>{role.name}</h3>\n{chat_log_update}\n\n</section>"
             self.next_speaker_name = next_role_name
             self.save()
            
