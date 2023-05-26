@@ -154,7 +154,7 @@ def test_generate_any_image(request):
 @require_GET
 def home(request):
     template_context = {}
-    sample_size = 100
+    sample_size = 200
 
     template_context["recent"] = Team.objects.filter(private=False).order_by('-created')[:sample_size]
     try:
