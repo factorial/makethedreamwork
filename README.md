@@ -30,4 +30,3 @@ OPENAI_API_KEY="get it from your openai account"
 * Use the `team/uvicorn.service` file to set up a Uvicorn service running the FastAPI app in `stream`, which manages port 5000 for Eventstream requests (chats)
 * `python manage.py migrate`
 
-If you're reading this, sorry. This wasn't really intended to be shared.

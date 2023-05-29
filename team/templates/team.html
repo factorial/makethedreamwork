@@ -17,10 +17,11 @@
 	  {% else %}
 	  <h2><a href='/'>Home</a></h2>
 	  <h1>Your <em>{{ team.objective }}</em> Team</h1>
-	  <p>Use the handbooks provided to kickstart discussion among human team members
-	  or have a kickoff chat with AI versions of them. Your real world team may 
-	  need to combine roles, or duplicate them, or divide them...
-	  </p>
+	  <ul class='intro'>
+		  <li>Use the handbooks provided to kickstart discussion among human team members.</li>
+		  <li>Click a role title to find people on LinkedIn with that role who could add their expertise to your team.</li>
+		  <li>Pick the role you want to fill and have a kickoff chat with AI versions of the other roles.</li>
+	  </ul>
 
 	  <ul class='team'>
 		  {% for role_name, role_dict in team.roles.items %}
@@ -30,14 +31,12 @@
 			  <button onclick='showHandbook(this);'><span>Role Handbook</span></button>
 			  <!-- this section must come directly after the button that shows it because my code is a joke-->
 			  <section class='handbook'>
-				  <h3>This is the handbook for your team's {{role_name}}, written in 
+				  <h3><p>This is the handbook for your team's {{role_name}}(s), written in 
 					  <a href='https://markdownlivepreview.com/'>markdown</a>. 
-					  You can edit it to suit your needs, copy-paste it wherever you 
-					  want. Use it to assume this role yourself or give it to other {{role_name}}(s), or
-					  open up <a href='https://chat.openai.com/'>a chatbot</a>, paste this, delete the
-					  handbook title, then have a 1-on-1 with your new AI {{role_name}}.
-
-				  <button onclick='hideHandbook(this);'><span>Close</span></button>
+					  You can edit it to suit your needs here and use copy/paste to provide the handbook
+					  to others.</p>
+				      <button onclick='hideHandbook(this);'><span>Close</span></button>
+				      <button onclick='copy(this);'><span>Copy</span></button>
 				  </h3>
 				  <textarea>{{ role_dict.guide }}</textarea>
 			  </section>
@@ -69,11 +68,33 @@
 	  function hideHandbook() {
 			    for (item of document.getElementsByClassName('handbook')) { item.style.display = 'none'; };
 		    }
+	  function copy(buttonCaller) {
+			    const parent = buttonCaller.parentNode.parentNode;
+
+			    // Select the textarea sibling
+			    const textarea = parent.querySelector('textarea');
+
+			    // Select the text in the textarea
+			    textarea.select();
+			    textarea.setSelectionRange(0, 99999); // For mobile devices
+
+			    // Copy the selected text to the clipboard
+			    document.execCommand('copy');
+
+			    // Deselect the text
+			    textarea.blur();
+
+			    // Update button text temporarily
+			    buttonCaller.textContent = 'Copied!';
+			    setTimeout(() => {
+					      buttonCaller.textContent = 'Copy';
+				      }, 2000
+			      ); // Reset button text after 2 seconds 
+		    }
 	  function showHandbook(buttonCaller) {
 			    // get caller
 			    // show section nearest modally or whatever
 			    buttonCaller.nextElementSibling.style.display = "grid";
-
 			    //document.getElementById('main').addEventListener("click", hideHandbook, { once: true });
 			    event.stopPropagation()
 		    }
