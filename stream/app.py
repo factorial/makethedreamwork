@@ -9,7 +9,7 @@ from asgiref.sync import sync_to_async
 # Shared code with Django app.
 # Add the parent directory of the current script to the module search path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from team import openai, secrets
+from team import secrets
 
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -28,10 +28,6 @@ app.add_middleware(
 
 
 templates = Jinja2Templates(directory="templates")
-
-# Set your OpenAI API key
-openai.api_key = secrets.OPENAI_API_KEY
-
 
 # Import django ORM
 from django.conf import settings

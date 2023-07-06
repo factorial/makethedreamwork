@@ -125,11 +125,13 @@ def openai_image(prompt):
     failure_return_value = False
     for retries in range(0, max_retries):
         try:
+            print(f"openai.Image.create(prompt={prompt},n=1,size='512x512')")
             response = openai.Image.create(
                 prompt=prompt,
                 n=1,
                 size="512x512"
             )
+            print(f"Result of {prompt} is {response}")
             image_url = response['data'][0]['url']
             print("OpenAI made"+ image_url)
             return image_url

@@ -2,7 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-from team.openai import openai_call, openai_image, lookahead_filter
+from team.ai import openai_call, openai_image, lookahead_filter
 from team.utils import approximate_word_count, persist_image
 from team import prompts
 import urllib.parse
@@ -145,9 +145,9 @@ class Team(models.Model):
             if role in role_tasks:
                 print(f"Yes, {role} is in {role_tasks}")
                 role_tasks_to_save=role_tasks[role]
-            elif role in role_tasks[role_tasks.keys()[0]]:
+            elif role in role_tasks[list(role_tasks.keys())[0]]:
                 print(f"Yes, {role} is in first key of {role_tasks}")
-                role_tasks_to_save=role_tasks[role_tasks.keys(0)][role]
+                role_tasks_to_save=role_tasks[list(role_tasks.keys)[0]][role]
             else:
                 print(f"No, {role} is not in {role_tasks}, so this role gets no tasks.")
                 role_tasks_to_save=None

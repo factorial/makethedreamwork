@@ -6,7 +6,7 @@ from django.conf import settings
 from django.urls import reverse
 
 from team.models import Team, Chat
-from team.openai import openai_call, openai_image
+from team.ai import openai_call, openai_image
 from team.utils import approximate_word_count
 from team import prompts
 
@@ -135,7 +135,7 @@ def team_by_guid(request, guid=None, format=None):
 
 def test_generate_profile_image(request):
     role = request.GET["role"]
-    mascfem = request.GET.get('mascfem', random.choice(["masculine", "feminine"]))
+    mascfem = request.GET.get('mascfem', random.choice(["male", "female"]))
     add = request.GET.get('add','')
     city = request.GET.get('city', 'New York City')
     prompt = prompts.AVATAR_FROM_CITY.format(mascfem=mascfem, role=role, city=city, add=add)

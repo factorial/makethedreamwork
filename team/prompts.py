@@ -12,7 +12,7 @@ LIST_ROLES = "{context} List the roles on this team as a JavaScript array of str
 JAVASCRIPT_ERROR = "{context} That was not valid JavaScript array syntax. Try again:\n"
 
 NEW_MEMBER_QUESTIONS = """{context}
-You are a new member on this team, assuming the role of {role}. List the questions you want to ask an
+You are a new member on this team, assuming the role of {role}. List the top ten questions you want to ask an
 expert in this role so they can give you the answers that will make you successful at your tasks and able to
 effectively collaborate toward the real-world objective: {objective}."""
 
@@ -22,7 +22,9 @@ role using Markdown format. In it, answer the new member's specific questions in
 Also include in the handbook a guide which describes step-by-step a typical day in the life of a person in this role
 on this team."""
     
-AVATAR_FROM_CITY = "3D rendered cartoon avatar of {mascfem} {add} {role} from {city}, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
+#AVATAR_FROM_CITY = "3D rendered cartoon avatar of {mascfem} {add} {role} from {city}, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
+AVATAR_FROM_CITY = "Disney Pixar style avatar of a {mascfem} {role}, highlighted hair, centered, studio lighting, looking directly at the camera, dslr, ultra high quality image, sharp, focused, DOF, 8K UHD, glossy eyes, high detailed skin, skin pores, not ugly"
+
 
 AVATAR = "3D rendered cartoon avatar of {mascfem} person, highlight hair, centered, studio lighting, looking at the camera, dslr, ultra quality, sharp focus, tack sharp, dof, Fujifilm XT3, crystal clear, 8K UHD, highly detailed glossy eyes, high detailed skin, skin pores, international, NOT ugly, NOT disfigured, NOT bad"
 
