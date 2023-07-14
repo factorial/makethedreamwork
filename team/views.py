@@ -104,7 +104,12 @@ def team_by_guid(request, guid=None, format=None):
 
     template_context = team.get_template_context()
     if format and format.lower()=='json':
-        print("serving up json")
+        print("regening every team image")
+        for role in team.role_set.all():
+            role.generate_image()
+            role.persist_image()
+        
+        # This doesn't work. :/
         return HttpResponse(json.dumps(template_context))
 
     if team.generation_progress_percent < 100:

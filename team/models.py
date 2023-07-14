@@ -272,7 +272,7 @@ class Role(models.Model):
     def generate_image(self):
         print(f"Generating image for {self}")
         
-        mascfem = random.choice(["masculine ", "feminine "])
+        mascfem = random.choice(["male ", "female "])
         city = "Atlanta"
         prompt = prompts.AVATAR_FROM_CITY.format(mascfem=mascfem, role=self.name, city=city, add='')
         new_image_url = openai_image(prompt=prompt)
